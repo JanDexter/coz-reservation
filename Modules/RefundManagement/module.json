@@ -1,0 +1,11 @@
+{
+    "name": "RefundManagement",
+    "alias": "refundmanagement",
+    "description": "",
+    "keywords": [],
+    "priority": 0,
+    "providers": [
+        "Modules\\RefundManagement\\Providers\\RefundManagementServiceProvider"
+    ],
+    "files": []
+}

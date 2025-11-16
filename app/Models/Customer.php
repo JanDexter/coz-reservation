@@ -17,6 +17,8 @@ class Customer extends Model
         'company_name',
         'contact_person',
         'email',
+        'email_verified_at',
+        'created_by_admin',
         'phone',
         'address',
         'website',
@@ -28,6 +30,8 @@ class Customer extends Model
 
     protected $casts = [
         'amount_paid' => 'decimal:2',
+        'email_verified_at' => 'datetime',
+        'created_by_admin' => 'boolean',
     ];
 
     // Get formatted amount paid

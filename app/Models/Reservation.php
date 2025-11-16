@@ -85,10 +85,9 @@ class Reservation extends Model
 
     public function scopeActive($query)
     {
-        return $query->where(function ($q) {
-            $q->whereNull('status')
-                ->orWhereNotIn('status', ['completed', 'cancelled']);
-        });
+        // Active = currently in use (not ended and not finished/cancelled)
+        return $query->whereNotIn('status', ['completed', 'cancelled', 'paid'])
+            ->whereNull('end_time'); // Only reservations that haven't ended yet
     }
 
     public function scopeOverlapping($query, Carbon $start, ?Carbon $end)

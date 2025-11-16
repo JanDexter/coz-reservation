@@ -26,6 +26,7 @@ class CustomerViewController extends Controller
         $reservations = [];
 
         if ($user) {
+            // Only show active and upcoming reservations (not completed or past)
             $reservations = Reservation::with(['space.spaceType', 'spaceType', 'customer'])
                 ->where(function ($q) use ($user) {
                     // Include reservations created by this user
@@ -38,6 +39,8 @@ class CustomerViewController extends Controller
                         }
                     }
                 })
+                // Filter to only show active/upcoming reservations
+                ->whereIn('status', ['pending', 'on_hold', 'confirmed', 'active'])
                 ->latest()
                 ->get()
                 ->map(function ($reservation) {
@@ -169,6 +172,79 @@ class CustomerViewController extends Controller
             });
 
         return response()->json(['transactions' => $transactions]);
+    }
+
+    /**
+     * Get reservation history (completed and cancelled reservations)
+     */
+    public function reservationHistory()
+    {
+        $user = Auth::user();
+
+        if (!$user) {
+            return response()->json(['history' => []]);
+        }
+
+        // Get all completed, cancelled, and past paid reservations
+        $history = Reservation::with(['space.spaceType', 'spaceType', 'customer'])
+            ->where(function ($q) use ($user) {
+                $q->where('user_id', $user->id);
+                if ($user->relationLoaded('customer') ? $user->customer : $user->customer()->exists()) {
+                    $customerId = optional($user->customer)->id;
+                    if ($customerId) {
+                        $q->orWhere('customer_id', $customerId);
+                    }
+                }
+            })
+            ->where(function($q) {
+                // Include completed, cancelled, and paid reservations
+                $q->whereIn('status', ['completed', 'cancelled', 'paid'])
+                  // Also include any past reservations regardless of status
+                  ->orWhere('end_time', '<', now());
+            })
+            ->orderByDesc('start_time')
+            ->get()
+            ->map(function ($reservation) {
+                $spaceTypeName = optional(optional($reservation->space)->spaceType)->name
+                    ?? optional($reservation->spaceType)->name
+                    ?? 'Reserved Space';
+
+                return [
+                    'id' => $reservation->id,
+                    'service' => $spaceTypeName,
+                    'date' => $reservation->created_at->toFormattedDateString(),
+                    'start_time' => $reservation->start_time,
+                    'end_time' => $reservation->end_time,
+                    'hours' => $reservation->hours,
+                    'pax' => $reservation->pax,
+                    'payment_method' => $reservation->payment_method,
+                    'total_cost' => $reservation->total_cost,
+                    'amount_paid' => $reservation->amount_paid ?? 0,
+                    'amount_remaining' => $reservation->amount_remaining,
+                    'is_partially_paid' => $reservation->is_partially_paid,
+                    'is_fully_paid' => $reservation->is_fully_paid,
+                    'effective_hourly_rate' => $reservation->effective_hourly_rate,
+                    'status' => $reservation->status,
+                    'is_open_time' => (bool) $reservation->is_open_time,
+                    'space_type_id' => $reservation->space_type_id,
+                    'space_type' => $reservation->spaceType ? [
+                        'id' => $reservation->spaceType->id,
+                        'name' => $reservation->spaceType->name,
+                    ] : null,
+                    'customer' => $reservation->customer ? [
+                        'name' => $reservation->customer->name,
+                        'email' => $reservation->customer->email,
+                        'phone' => $reservation->customer->phone,
+                        'company_name' => $reservation->customer->company_name,
+                    ] : null,
+                    'customer_name' => $reservation->customer->name ?? null,
+                    'customer_email' => $reservation->customer->email ?? null,
+                    'customer_phone' => $reservation->customer->phone ?? null,
+                    'customer_company_name' => $reservation->customer->company_name ?? null,
+                ];
+            });
+
+        return response()->json(['history' => $history]);
     }
 }
 

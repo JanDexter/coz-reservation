@@ -1,0 +1,11 @@
+{
+    "UserManagement": true,
+    "ServiceManagement": true,
+    "ReservationManagement": true,
+    "CalendarView": true,
+    "TimeManagement": true,
+    "CustomerBooking": true,
+    "BillingPayment": true,
+    "RefundManagement": true,
+    "WiFiCredentials": true
+}

@@ -1,0 +1,11 @@
+{
+    "name": "CalendarView",
+    "alias": "calendarview",
+    "description": "",
+    "keywords": [],
+    "priority": 0,
+    "providers": [
+        "Modules\\CalendarView\\Providers\\CalendarViewServiceProvider"
+    ],
+    "files": []
+}

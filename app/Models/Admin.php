@@ -12,6 +12,7 @@ class Admin extends Model
     protected $fillable = [
         'user_id',
         'permission_level',
+        'role_id',
         'permissions',
     ];
 
@@ -32,6 +33,14 @@ class Admin extends Model
     public function user()
     {
         return $this->belongsTo(User::class);
+    }
+
+    /**
+     * Get the role assigned to this admin
+     */
+    public function role()
+    {
+        return $this->belongsTo(Role::class);
     }
 
     /**
@@ -67,6 +76,14 @@ class Admin extends Model
             return true; // Super admin has all permissions
         }
 
+        // If admin has a role, check role permissions first
+        if ($this->role) {
+            if ($this->role->hasPermission($permission)) {
+                return true;
+            }
+        }
+
+        // Then check individual permissions
         return in_array($permission, $this->permissions ?? []);
     }
 
@@ -87,7 +104,13 @@ class Admin extends Model
             return ['*']; // Super admin has all permissions
         }
 
-        return $this->permissions ?? [];
+        $permissions = $this->permissions ?? [];
+        
+        if ($this->role) {
+            $permissions = array_unique(array_merge($permissions, $this->role->permissions ?? []));
+        }
+
+        return array_values($permissions);
     }
 
     /**

@@ -1,5 +1,6 @@
 <script setup>
 import { ref, onMounted, onUnmounted } from 'vue';
+import { Link } from '@inertiajs/vue3';
 import logo from '../../img/logo.png';
 import slide1 from '../../img/slideshow/Shared Space.jpg';
 import slide2 from '../../img/slideshow/Private Space.jpg';
@@ -55,10 +56,21 @@ onUnmounted(() => {
     <div class="min-h-screen flex">
         <!-- Left Side - Slideshow -->
         <div class="hidden lg:flex lg:w-1/2 relative bg-gradient-to-br from-[#2f4686] to-[#1e2f5a] overflow-hidden">
-            <!-- Logo Overlay -->
-            <div class="absolute top-8 left-8 z-20 bg-white rounded-lg px-4 py-2 shadow-lg">
+            <!-- Logo Overlay - Clickable -->
+            <Link :href="route('customer.view')" class="absolute top-8 left-8 z-20 bg-white rounded-lg px-4 py-2 shadow-lg hover:shadow-xl transition-shadow duration-200">
                 <img :src="logo" alt="CO-Z Logo" class="h-10 w-auto" />
-            </div>
+            </Link>
+
+            <!-- Home Button -->
+            <Link 
+                :href="route('customer.view')" 
+                class="absolute top-8 right-8 z-20 flex items-center gap-2 bg-white/10 backdrop-blur-sm hover:bg-white/20 text-white rounded-lg px-4 py-2 transition-all duration-200 border border-white/20 hover:border-white/40"
+            >
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                    <path d="M10.707 2.293a1 1 0 00-1.414 0l-7 7a1 1 0 001.414 1.414L4 10.414V17a1 1 0 001 1h2a1 1 0 001-1v-2a1 1 0 011-1h2a1 1 0 011 1v2a1 1 0 001 1h2a1 1 0 001-1v-6.586l.293.293a1 1 0 001.414-1.414l-7-7z" />
+                </svg>
+                <span class="font-medium">Home</span>
+            </Link>
 
             <!-- Slideshow Container -->
             <div class="relative w-full h-full">
@@ -99,10 +111,23 @@ onUnmounted(() => {
         <!-- Right Side - Form -->
         <div class="w-full lg:w-1/2 flex items-center justify-center p-8 bg-gray-50">
             <div class="w-full max-w-md">
-                <!-- Mobile Logo -->
+                <!-- Mobile Logo - Clickable -->
                 <div class="lg:hidden flex justify-center mb-8">
-                    <img :src="logo" alt="CO-Z Logo" class="h-16 w-auto" />
+                    <Link :href="route('customer.view')">
+                        <img :src="logo" alt="CO-Z Logo" class="h-16 w-auto hover:opacity-80 transition-opacity duration-200" />
+                    </Link>
                 </div>
+
+                <!-- Mobile Home Button -->
+                <Link 
+                    :href="route('customer.view')" 
+                    class="lg:hidden flex items-center justify-center gap-2 mb-6 bg-[#2f4686] hover:bg-[#1e2f5a] text-white rounded-lg px-4 py-2 transition-all duration-200 shadow-md hover:shadow-lg"
+                >
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                        <path d="M10.707 2.293a1 1 0 00-1.414 0l-7 7a1 1 0 001.414 1.414L4 10.414V17a1 1 0 001 1h2a1 1 0 001-1v-2a1 1 0 011-1h2a1 1 0 011 1v2a1 1 0 001 1h2a1 1 0 001-1v-6.586l.293.293a1 1 0 001.414-1.414l-7-7z" />
+                    </svg>
+                    <span class="font-medium">Back to Home</span>
+                </Link>
 
                 <!-- Form Content -->
                 <div class="bg-white rounded-2xl shadow-xl p-8">

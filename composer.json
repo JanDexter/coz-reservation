@@ -13,6 +13,7 @@
         "laravel/socialite": "^5.23",
         "laravel/tinker": "^2.10.1",
         "maatwebsite/excel": "^3.1",
+        "nwidart/laravel-modules": "^12.0",
         "pragmarx/google2fa-laravel": "^2.3",
         "tightenco/ziggy": "^2.0"
     },
@@ -31,7 +32,10 @@
             "App\\": "app/",
             "Database\\Factories\\": "database/factories/",
             "Database\\Seeders\\": "database/seeders/"
-        }
+        },
+        "classmap": [
+            "Modules/"
+        ]
     },
     "autoload-dev": {
         "psr-4": {
@@ -82,7 +86,8 @@
         "sort-packages": true,
         "allow-plugins": {
             "pestphp/pest-plugin": true,
-            "php-http/discovery": true
+            "php-http/discovery": true,
+            "wikimedia/composer-merge-plugin": true
         }
     },
     "minimum-stability": "stable",

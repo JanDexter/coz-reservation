@@ -1,0 +1,11 @@
+{
+    "name": "CustomerBooking",
+    "alias": "customerbooking",
+    "description": "",
+    "keywords": [],
+    "priority": 0,
+    "providers": [
+        "Modules\\CustomerBooking\\Providers\\CustomerBookingServiceProvider"
+    ],
+    "files": []
+}

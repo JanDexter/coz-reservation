@@ -3,10 +3,9 @@
 namespace App\Http\Controllers;
 
 use App\Models\Customer;
-use App\Models\Reservation;
+use App\Models\TransactionLog;
 use App\Models\SpaceType;
 use App\Models\Refund;
-use App\Models\TransactionLog;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -169,6 +168,35 @@ class PublicReservationController extends Controller
             }
         }
 
+        // VALIDATION: Check for overlapping reservations
+        $hasOverlappingReservation = $customer->reservations()
+            ->whereIn('status', ['pending', 'on_hold', 'confirmed', 'active', 'paid'])
+            ->where(function($q) use ($startTime, $endTime) {
+                $q->where(function($query) use ($startTime, $endTime) {
+                    // New reservation starts during an existing reservation
+                    $query->where('start_time', '<=', $startTime)
+                          ->where('end_time', '>', $startTime);
+                })->orWhere(function($query) use ($startTime, $endTime) {
+                    // New reservation ends during an existing reservation
+                    $query->where('start_time', '<', $endTime)
+                          ->where('end_time', '>=', $endTime);
+                })->orWhere(function($query) use ($startTime, $endTime) {
+                    // New reservation completely contains an existing reservation
+                    $query->where('start_time', '>=', $startTime)
+                          ->where('end_time', '<=', $endTime);
+                });
+            })
+            ->exists();
+
+        if ($hasOverlappingReservation) {
+            return redirect()
+                ->back()
+                ->withErrors([
+                    'start_time' => 'You already have a reservation during this time period. Please choose a different time or cancel your existing reservation first.',
+                ])
+                ->withInput();
+        }
+
     $reservation = DB::transaction(function () use ($validated, $spaceType, $hours, $pax, $appliedHourlyRate, $appliedDiscountHours, $appliedDiscountPercentage, $isDiscounted, $baseCost, $startTime, $endTime, $customer) {
             // Update additional customer info if needed
             if (empty($customer->contact_person)) {
@@ -213,6 +241,25 @@ class PublicReservationController extends Controller
                 'is_discounted' => $isDiscounted,
                 'cost' => round($baseCost, 2),
             ]);
+
+            // If payment is made online (gcash/maya), create a transaction log for the full amount
+            if (in_array($validated['payment_method'], ['gcash', 'maya'])) {
+                $reservation->amount_paid = $reservation->total_cost;
+                $reservation->save();
+                
+                TransactionLog::create([
+                    'type' => 'payment',
+                    'reservation_id' => $reservation->id,
+                    'customer_id' => $customer->id,
+                    'processed_by' => Auth::id(),
+                    'amount' => $reservation->total_cost,
+                    'payment_method' => $validated['payment_method'],
+                    'status' => 'completed',
+                    'reference_number' => TransactionLog::generateReferenceNumber('payment'),
+                    'description' => "Online payment for reservation #{$reservation->id} via " . strtoupper($validated['payment_method']),
+                    'notes' => 'Customer self-service booking payment',
+                ]);
+            }
 
             return $reservation;
         });

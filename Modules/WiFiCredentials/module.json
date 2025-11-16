@@ -1,0 +1,11 @@
+{
+    "name": "WiFiCredentials",
+    "alias": "wificredentials",
+    "description": "",
+    "keywords": [],
+    "priority": 0,
+    "providers": [
+        "Modules\\WiFiCredentials\\Providers\\WiFiCredentialsServiceProvider"
+    ],
+    "files": []
+}

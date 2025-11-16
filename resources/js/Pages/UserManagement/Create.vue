@@ -21,6 +21,9 @@ const submit = () => {
         onSuccess: () => {
             form.reset();
         },
+        onError: (errors) => {
+            console.error('User creation failed:', errors);
+        },
     });
 };
 </script>

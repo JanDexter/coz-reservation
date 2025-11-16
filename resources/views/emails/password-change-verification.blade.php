@@ -58,6 +58,7 @@
 </head>
 <body>
     <div class="header">
+        <img src="https://cozcoworkspace.page/build/assets/logo-CALfEbup.png" alt="CO-Z Co-Workspace" style="max-width: 180px; height: auto; margin-bottom: 10px;" />
         <h1 style="margin: 0;">Password Change Request</h1>
         <p style="margin: 10px 0 0 0; opacity: 0.9;">CO-Z Co-Workspace & Study Hub</p>
     </div>

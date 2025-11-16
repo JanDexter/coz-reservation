@@ -19,37 +19,31 @@ class SpaceManagementController extends Controller
     public function index()
     {
         $now = Carbon::now();
+        $nowPlusBuffer = $now->copy()->addMinute(); // Create once, reuse
         
         $spaceTypes = SpaceType::with([
-            'spaces' => function($query) use ($now) {
+            'spaces' => function($query) use ($now, $nowPlusBuffer) {
                 $query->with([
                     'currentCustomer',
-                    'reservations' => function($q) use ($now) {
-                        // Get the currently active reservation for this space
-                        $q->where(function($sub) {
+                    'reservations' => function($q) use ($now, $nowPlusBuffer) {
+                        // Get active or upcoming reservations
+                        $q->whereNull('end_time')  // Only reservations without an end_time
+                        ->where(function($sub) {
                             $sub->whereNull('status')
-                              ->orWhereNotIn('status', ['completed', 'cancelled']);
-                        })
-                        ->where('start_time', '<=', $now)
-                        ->where(function($sub) use ($now) {
-                            $sub->where('end_time', '>', $now)
-                                ->orWhereNull('end_time');
+                              ->orWhereNotIn('status', ['cancelled']);  // Exclude only cancelled
                         })
                         ->with('customer')
                         ->orderBy('start_time', 'asc');
                     }
                 ]);
             },
-            'reservations' => function($query) use ($now) {
-                // Get active reservations (not completed or cancelled) that are currently ongoing or upcoming
-                $query->where(function($q) {
+            'reservations' => function($query) use ($now, $nowPlusBuffer) {
+                // Get active reservations that haven't been completed or cancelled yet
+                // Active = has not been ended yet (end_time is null)
+                $query->whereNull('end_time')  // Only reservations without an end_time
+                ->where(function($q) {
                     $q->whereNull('status')
-                      ->orWhereNotIn('status', ['completed', 'cancelled']);
-                })
-                ->where(function($q) use ($now) {
-                    // Include reservations that haven't ended yet
-                    $q->where('end_time', '>', $now)
-                      ->orWhereNull('end_time');
+                      ->orWhereNotIn('status', ['cancelled']);  // Exclude only cancelled
                 })
                 ->with('customer')
                 ->orderBy('start_time', 'asc');
@@ -57,30 +51,65 @@ class SpaceManagementController extends Controller
         ])->get();
 
         // Transform to include reservation info in spaces
-        $spaceTypes->each(function($spaceType) use ($now) {
+        $spaceTypes->each(function($spaceType) use ($now, $nowPlusBuffer) {
             // Update each space with dynamic status based on current active reservation
-            $spaceType->spaces->each(function($space) use ($now) {
-                $activeReservation = $space->reservations->first();
+            $spaceType->spaces->each(function($space) use ($now, $nowPlusBuffer) {
+                // Get active reservation (already started)
+                $activeReservation = $space->reservations
+                    ->where('start_time', '<=', $nowPlusBuffer)
+                    ->first();
                 
+                // Get future reservations (haven't started yet)
+                $futureReservations = $space->reservations
+                    ->where('start_time', '>', $nowPlusBuffer)
+                    ->sortBy('start_time')
+                    ->values();
+                
+                // Get the next upcoming reservation
+                $nextReservation = $futureReservations->first();
+                
+                // Determine status
                 if ($activeReservation) {
                     // There's an active reservation right now
                     $space->dynamic_status = 'occupied';
                     $space->active_reservation = $activeReservation;
                     $space->current_customer_name = $activeReservation->customer->display_name ?? $activeReservation->customer->name;
-                } else {
-                    // No active reservation right now
-                    $space->dynamic_status = 'available';
+                } elseif ($nextReservation) {
+                    // No active reservation, but there's a future booking
+                    $space->dynamic_status = 'scheduled';
                     $space->active_reservation = null;
+                    $space->next_reservation = $nextReservation;
+                    $space->next_booking_in_hours = round($now->diffInMinutes($nextReservation->start_time) / 60, 1);
+                    $space->next_customer_name = $nextReservation->customer->display_name ?? $nextReservation->customer->name;
+                    $space->current_customer_name = null;
+                } elseif ($space->status === 'occupied' && $space->current_customer_id) {
+                    // Space is marked as occupied in database but no reservation found
+                    $space->dynamic_status = 'occupied';
+                    $space->active_reservation = null;
+                    $space->next_reservation = null;
+                    $space->current_customer_name = $space->currentCustomer 
+                        ? ($space->currentCustomer->display_name ?? $space->currentCustomer->name)
+                        : null;
+                } else {
+                    // No active reservation and not marked as occupied
+                    $space->dynamic_status = $space->status; // Use actual status (available/maintenance/etc)
+                    $space->active_reservation = null;
+                    $space->next_reservation = null;
                     $space->current_customer_name = null;
                 }
+                
+                // Always include future reservations count for info
+                $space->future_reservations_count = $futureReservations->count();
+                $space->future_reservations = $futureReservations->take(3); // Show up to 3 upcoming bookings
             });
             
             // Get unassigned reservations (no space_id) for this space type
             $unassignedReservations = $spaceType->reservations
                 ->whereNull('space_id')
-                ->filter(function($reservation) use ($now) {
-                    // Only show if it's currently active (started but not ended)
-                    return $reservation->start_time <= $now &&
+                ->filter(function($reservation) use ($nowPlusBuffer, $now) {
+                    // Only show if it's currently active (started or starting soon, but not ended)
+                    // Include reservations starting within 1 minute to handle timing issues
+                    return $reservation->start_time <= $nowPlusBuffer &&
                            ($reservation->end_time === null || $reservation->end_time > $now);
                 });
             
@@ -214,30 +243,88 @@ class SpaceManagementController extends Controller
 
     public function releaseSpace(Space $space)
     {
+        \Log::info('Release space requested', [
+            'space_id' => $space->id,
+            'space_name' => $space->name,
+            'current_status' => $space->status,
+            'customer_id' => $space->current_customer_id,
+        ]);
+
         if ($space->status === 'occupied') {
             $space->release();
+            
+            // Reload the space to verify the changes
+            $space->refresh();
+            
+            \Log::info('Space released', [
+                'space_id' => $space->id,
+                'new_status' => $space->status,
+                'customer_id' => $space->current_customer_id,
+            ]);
+            
             return redirect()->back()->with('success', "Space {$space->name} has been released.");
         }
+
+        \Log::warning('Release failed - space not occupied', [
+            'space_id' => $space->id,
+            'status' => $space->status,
+        ]);
 
         return redirect()->back()->with('error', 'Space is not currently occupied.');
     }
 
     public function assignSpace(Request $request, Space $space)
     {
+        // Log incoming request for debugging
+        \Log::info('Assignment request received', [
+            'space_id' => $space->id,
+            'request_data' => $request->all(),
+            'server_time' => now()->toDateTimeString(),
+        ]);
+
         $validated = $request->validate([
             'customer_id' => 'required',
             'occupied_until' => 'nullable|date|after:now',
             'custom_hourly_rate' => 'nullable|numeric|min:0',
-            'start_time' => 'nullable|date|after_or_equal:now',
+            'start_time' => 'nullable|date', // Remove strict time validation - we'll check manually
         ]);
+
+        \Log::info('Validation passed', ['validated' => $validated]);
 
         // Handle customer_id which could be 'user_123' or actual customer ID
         $customerId = $this->resolveCustomerId($validated['customer_id']);
         if (!$customerId) {
+            \Log::error('Failed to resolve customer ID', ['input' => $validated['customer_id']]);
             return redirect()->back()->with('error', 'Invalid customer or user selection.');
         }
 
+        // Validate start_time manually with a 2-minute buffer for clock differences
+        if (isset($validated['start_time'])) {
+            $startTime = Carbon::parse($validated['start_time']);
+            $twoMinutesAgo = now()->subMinutes(2);
+            
+            if ($startTime->lt($twoMinutesAgo)) {
+                \Log::warning('Start time too far in past', [
+                    'start_time' => $startTime->toDateTimeString(),
+                    'threshold' => $twoMinutesAgo->toDateTimeString(),
+                ]);
+                return redirect()->back()->with('error', 'Start time cannot be in the past.');
+            }
+        }
+
+        \Log::info('Checking space availability', [
+            'space_id' => $space->id,
+            'space_status' => $space->status,
+            'current_customer_id' => $space->current_customer_id,
+            'is_available' => $space->isAvailable(),
+        ]);
+
         if (!$space->isAvailable()) {
+            \Log::warning('Space not available', [
+                'space_id' => $space->id,
+                'status' => $space->status,
+                'customer_id' => $space->current_customer_id,
+            ]);
             return redirect()->back()->with('error', 'Space is not available.');
         }
 
@@ -252,7 +339,19 @@ class SpaceManagementController extends Controller
                 ->overlapping(Carbon::parse($from), $until ? Carbon::parse($until) : null)
                 ->exists();
 
+            \Log::info('Conflict check', [
+                'space_id' => $space->id,
+                'conflict_exists' => $conflictExists,
+                'from' => $from,
+                'until' => $until,
+            ]);
+
             if ($conflictExists) {
+                \Log::warning('Scheduling conflict detected', [
+                    'space_id' => $space->id,
+                    'from' => $from,
+                    'until' => $until,
+                ]);
                 return redirect()->back()->with('error', 'This space has a conflicting reservation during the selected time.');
             }
         }
@@ -268,6 +367,15 @@ class SpaceManagementController extends Controller
             ->where('customer_id', $customerId)
             ->latest()
             ->first();
+            
+        \Log::info('Space assigned', [
+            'space_id' => $space->id,
+            'space_status' => $space->fresh()->status,
+            'customer_id' => $customerId,
+            'reservation_id' => $reservation ? $reservation->id : null,
+            'reservation_start' => $reservation ? $reservation->start_time : null,
+        ]);
+        
         if ($reservation) {
             if (isset($validated['custom_hourly_rate'])) {
                 $reservation->update(['custom_hourly_rate' => $validated['custom_hourly_rate']]);
@@ -332,6 +440,17 @@ class SpaceManagementController extends Controller
                 'hours' => 0,   // initialize to 0; will be computed on end
                 'cost' => 0,    // initialize to 0; will be computed on end
             ]);
+
+            // Occupy the space so it shows as occupied
+            $space->update([
+                'status' => 'occupied',
+                'current_customer_id' => $customerId,
+                'occupied_from' => Carbon::now(),
+                'occupied_until' => null, // Open ended
+            ]);
+            
+            // Decrement available slots
+            $space->spaceType->decrement('available_slots');
         });
 
         return back()->with('success', 'Open time started successfully.');
@@ -364,10 +483,21 @@ class SpaceManagementController extends Controller
             $reservation->cost = $totalCost;
             $reservation->applied_hourly_rate = $hourlyRate;
             $reservation->end_time = $endTime;
-            $reservation->status = 'pending';
+            $reservation->status = 'completed'; // Mark as completed (unpaid) - can pay later
             // Do NOT mark as paid; payment must be processed separately
             $reservation->amount_paid = 0;
             $reservation->save();
+
+            // Release the space
+            $space->update([
+                'status' => 'available',
+                'current_customer_id' => null,
+                'occupied_from' => null,
+                'occupied_until' => null,
+            ]);
+            
+            // Increment available slots back
+            $space->spaceType->increment('available_slots');
         });
 
         return back()->with('success', 'Open time ended successfully. Total cost calculated.');

@@ -1,0 +1,30 @@
+{
+    "name": "nwidart/billingpayment",
+    "description": "",
+    "authors": [
+        {
+            "name": "Nicolas Widart",
+            "email": "n.widart@gmail.com"
+        }
+    ],
+    "extra": {
+        "laravel": {
+            "providers": [],
+            "aliases": {
+
+            }
+        }
+    },
+    "autoload": {
+        "psr-4": {
+            "Modules\\BillingPayment\\": "app/",
+            "Modules\\BillingPayment\\Database\\Factories\\": "database/factories/",
+            "Modules\\BillingPayment\\Database\\Seeders\\": "database/seeders/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Modules\\BillingPayment\\Tests\\": "tests/"
+        }
+    }
+}

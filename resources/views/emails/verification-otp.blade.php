@@ -74,7 +74,7 @@
 <body>
     <div class="container">
         <div class="header">
-            <img src="{{ asset('img/logo.png') }}" alt="CO-Z Co-Workspace" />
+            <img src="https://cozcoworkspace.page/build/assets/logo-CALfEbup.png" alt="CO-Z Co-Workspace" />
             <h1>CO-Z Co-Workspace & Study Hub</h1>
             <p style="margin: 5px 0 0 0; color: #666;">Email Verification</p>
         </div>

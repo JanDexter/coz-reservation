@@ -87,6 +87,20 @@ class Permission extends Model
     }
 
     /**
+     * Get a flat array of all permission keys
+     */
+    public static function getAllPermissionKeys(): array
+    {
+        $permissions = [];
+        foreach (self::getAllPermissions() as $category => $perms) {
+            foreach ($perms as $key => $description) {
+                $permissions[] = $category . '.' . $key;
+            }
+        }
+        return $permissions;
+    }
+
+    /**
      * Get preset role permissions
      */
     public static function getPresetPermissions(string $roleType): array

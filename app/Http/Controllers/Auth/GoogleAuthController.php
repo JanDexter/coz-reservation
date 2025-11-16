@@ -9,6 +9,8 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Laravel\Socialite\Facades\Socialite;
 use Illuminate\Support\Str;
+use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\URL;
 
 class GoogleAuthController extends Controller
 {
@@ -153,6 +155,37 @@ class GoogleAuthController extends Controller
                     'email'   => $googleUser->getEmail(),
                 ]);
                 $user->refresh();
+            } else {
+                // Check if customer was created by admin and needs email verification
+                $customer = $user->customer;
+                
+                if ($customer->created_by_admin && !$customer->email_verified_at) {
+                    // Generate verification URL
+                    $verificationUrl = URL::temporarySignedRoute(
+                        'customer.verify-email',
+                        now()->addHours(24),
+                        ['customer' => $customer->id]
+                    );
+                    
+                    // Send verification email
+                    try {
+                        Mail::send('emails.customer-verification', [
+                            'customer' => $customer,
+                            'verificationUrl' => $verificationUrl
+                        ], function ($message) use ($customer) {
+                            $message->to($customer->email)
+                                    ->subject('Verify Your CO-Z Co-Workspace Account');
+                        });
+                        
+                        \Log::info('Verification email sent to customer: ' . $customer->email);
+                    } catch (\Exception $e) {
+                        \Log::error('Failed to send verification email: ' . $e->getMessage());
+                    }
+                    
+                    // Prevent login - return null to deny access
+                    session()->flash('status', 'A verification email has been sent to ' . $customer->email . '. Please verify your email to access your account.');
+                    return null;
+                }
             }
         }
 
@@ -183,5 +216,27 @@ class GoogleAuthController extends Controller
         $session->regenerate();
 
         return redirect()->intended(route('dashboard'));
+    }
+    
+    /**
+     * Verify customer email from verification link
+     */
+    public function verifyCustomerEmail(Customer $customer)
+    {
+        if ($customer->email_verified_at) {
+            return redirect()->route('customer.view')
+                ->with('success', 'Your email is already verified. You can now sign in.');
+        }
+        
+        // Mark email as verified and activate account
+        $customer->update([
+            'email_verified_at' => now(),
+            'status' => 'active'
+        ]);
+        
+        \Log::info('Customer email verified: ' . $customer->email);
+        
+        return redirect()->route('customer.view')
+            ->with('success', 'Email verified successfully! Your account is now active. Please sign in with Google to continue.');
     }
 }

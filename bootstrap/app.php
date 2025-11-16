@@ -9,6 +9,27 @@ return Application::configure(basePath: dirname(__DIR__))
         web: __DIR__.'/../routes/web.php',
         commands: __DIR__.'/../routes/console.php',
         health: '/up',
+        then: function () {
+            // Load all module routes automatically
+            $modulesPath = base_path('Modules');
+            if (is_dir($modulesPath)) {
+                $modules = array_filter(glob($modulesPath . '/*'), 'is_dir');
+                foreach ($modules as $modulePath) {
+                    $webRouteFile = $modulePath . '/routes/web.php';
+                    if (file_exists($webRouteFile)) {
+                        \Illuminate\Support\Facades\Route::middleware('web')
+                            ->group($webRouteFile);
+                    }
+                    
+                    $apiRouteFile = $modulePath . '/routes/api.php';
+                    if (file_exists($apiRouteFile)) {
+                        \Illuminate\Support\Facades\Route::middleware('api')
+                            ->prefix('api')
+                            ->group($apiRouteFile);
+                    }
+                }
+            }
+        }
     )
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->web(append: [

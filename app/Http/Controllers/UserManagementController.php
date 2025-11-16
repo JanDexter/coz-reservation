@@ -120,6 +120,11 @@ class UserManagementController extends Controller
                 case 'customer':
                     Customer::create([
                         'user_id' => $user->id,
+                        'company_name' => $validated['name'], // Use user name as company name
+                        'contact_person' => $validated['name'],
+                        'email' => $validated['email'],
+                        'phone' => $validated['phone'] ?? null,
+                        'status' => 'active',
                     ]);
                     break;
             }

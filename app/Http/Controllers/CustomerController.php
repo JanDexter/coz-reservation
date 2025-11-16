@@ -70,7 +70,12 @@ class CustomerController extends Controller
         ]);
 
     $validated['user_id'] = Auth::id();
-        $validated['status'] = 'active';
+        
+        // Customers created by admin are inactive until they verify their email
+        // Email will be sent when they first try to access their account
+        $validated['created_by_admin'] = true;
+        $validated['status'] = 'inactive';
+        $validated['email_verified_at'] = null;
 
         $validated['company_name'] = strip_tags($validated['company_name'] ?? '');
         $validated['contact_person'] = strip_tags($validated['contact_person'] ?? '');
@@ -80,12 +85,12 @@ class CustomerController extends Controller
         $customer = Customer::create($validated);
 
         if ($request->boolean('inline')) {
-            return back()->with('success', 'Customer created successfully.')
+            return back()->with('success', 'Customer created successfully. They will receive a verification email when they try to access their account.')
                          ->with('customer', $customer);
         }
 
         return redirect()->route('dashboard')
-            ->with('success', 'Customer created successfully.')
+            ->with('success', 'Customer created successfully. They will receive a verification email when they try to access their account.')
             ->with('customer', $customer);
     }
 
