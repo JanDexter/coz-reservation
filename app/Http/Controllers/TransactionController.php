@@ -116,10 +116,9 @@ class TransactionController extends Controller
 
     public function export(Request $request)
     {
-        $filter = $request->input('filter', 'daily');
-        $filename = sprintf('transactions-%s-%s.xlsx', $filter, now()->format('Ymd_His'));
+        $filename = sprintf('transactions-all-reports-%s.xlsx', now()->format('Ymd_His'));
 
-        return Excel::download(new TransactionsExport($filter), $filename);
+        return Excel::download(new TransactionsExport(), $filename);
     }
 
     public function update(Request $request, Reservation $reservation)
