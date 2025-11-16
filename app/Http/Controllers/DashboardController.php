@@ -23,10 +23,50 @@ class DashboardController extends Controller
             'total_users' => User::count(),
         ];
 
-        // Get space types with occupancy information
-        $spaceTypes = SpaceType::with(['spaces' => function($query) {
-            $query->with('currentCustomer');
-        }])->get();
+        // Get space types with occupancy information based on active reservations
+        $now = now();
+        $spaceTypes = SpaceType::with([
+            'spaces' => function($query) use ($now) {
+                $query->with([
+                    'currentCustomer',
+                    'reservations' => function($q) use ($now) {
+                        // Get currently active reservations (started but not ended)
+                        $q->where('start_time', '<=', $now)
+                          ->where(function($sub) use ($now) {
+                              $sub->whereNull('end_time')
+                                  ->orWhere('end_time', '>', $now);
+                          })
+                          ->whereNotIn('status', ['completed', 'cancelled'])
+                          ->with('customer')
+                          ->orderBy('start_time', 'desc');
+                    }
+                ]);
+            }
+        ])->get();
+        
+        // Add dynamic occupation status to each space based on active reservations
+        $spaceTypes->each(function($spaceType) use ($now) {
+            $spaceType->spaces->each(function($space) use ($now) {
+                $activeReservation = $space->reservations->first();
+                
+                if ($activeReservation) {
+                    $space->is_currently_occupied = true;
+                    $space->current_occupation = [
+                        'customer_name' => $activeReservation->customer->display_name ?? $activeReservation->customer->name ?? $activeReservation->customer->company_name,
+                        'start_time' => $activeReservation->start_time,
+                        'end_time' => $activeReservation->end_time,
+                        'reservation_id' => $activeReservation->id,
+                        'status' => $activeReservation->status,
+                    ];
+                } else {
+                    $space->is_currently_occupied = false;
+                    $space->current_occupation = null;
+                }
+                
+                // Unset the reservations collection to keep response size manageable
+                unset($space->reservations);
+            });
+        });
 
         // Get recent transactions (completed reservations)
         $recentTransactions = Reservation::with(['customer', 'space.spaceType'])

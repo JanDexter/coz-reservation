@@ -13,6 +13,9 @@ class Staff extends Model
 
     protected $fillable = [
         'user_id',
+        'position',
+        'permissions',
+        'role_id',
         'employee_id',
         'department',
         'hourly_rate',
@@ -20,6 +23,7 @@ class Staff extends Model
     ];
 
     protected $casts = [
+        'permissions' => 'array',
         'hourly_rate' => 'decimal:2',
         'hired_date' => 'date',
     ];
@@ -30,6 +34,76 @@ class Staff extends Model
     public function user()
     {
         return $this->belongsTo(User::class);
+    }
+
+    /**
+     * Get the role assigned to this staff
+     */
+    public function role()
+    {
+        return $this->belongsTo(Role::class);
+    }
+
+    /**
+     * Check if staff has a specific permission
+     */
+    public function hasPermission(string $permission): bool
+    {
+        // If staff has a role, check role permissions first
+        if ($this->role) {
+            if ($this->role->hasPermission($permission)) {
+                return true;
+            }
+        }
+
+        // Then check individual permissions
+        return in_array($permission, $this->permissions ?? []);
+    }
+
+    /**
+     * Get all permissions for this staff
+     */
+    public function getAllPermissions(): array
+    {
+        $permissions = $this->permissions ?? [];
+        
+        if ($this->role) {
+            $permissions = array_unique(array_merge($permissions, $this->role->permissions ?? []));
+        }
+
+        return array_values($permissions);
+    }
+
+    /**
+     * Set permissions from preset
+     */
+    public function setPresetPermissions(string $roleType): void
+    {
+        $this->permissions = Permission::getPresetPermissions($roleType);
+        $this->save();
+    }
+
+    /**
+     * Grant permission to staff
+     */
+    public function grantPermission(string $permission): void
+    {
+        $permissions = $this->permissions ?? [];
+        if (!in_array($permission, $permissions)) {
+            $permissions[] = $permission;
+            $this->permissions = $permissions;
+            $this->save();
+        }
+    }
+
+    /**
+     * Revoke permission from staff
+     */
+    public function revokePermission(string $permission): void
+    {
+        $permissions = $this->permissions ?? [];
+        $this->permissions = array_values(array_filter($permissions, fn($p) => $p !== $permission));
+        $this->save();
     }
 
     /**

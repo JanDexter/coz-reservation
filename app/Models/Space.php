@@ -75,7 +75,7 @@ class Space extends Model
         $discountPct = $this->discount_percentage ?? $this->spaceType->default_discount_percentage;
 
         Reservation::create([
-            'user_id' => Auth::id(),
+            'user_id' => Auth::id() ?? null, // Allow null if no user is authenticated
             'customer_id' => $customerId,
             'space_id' => $this->id,
             'start_time' => $from ?? now(),
@@ -91,7 +91,12 @@ class Space extends Model
 
     public function release()
     {
-        $reservation = Reservation::where('space_id', $this->id)->whereNull('end_time')->latest()->first();
+        // Find active reservation (not yet ended)
+        $reservation = Reservation::where('space_id', $this->id)
+            ->whereNull('end_time')
+            ->latest()
+            ->first();
+            
         if ($reservation) {
             // Calculate hours from start to now; keep integer hours as before
             $hours = now()->diffInHours($reservation->start_time);
@@ -102,9 +107,15 @@ class Space extends Model
 
             $cost = $this->calculateCost($hours, $hourly, $discountHours, $discountPct);
 
+            // Update reservation: set end_time and cost
+            // Mark as 'completed' (unpaid) - they can pay later via transactions tab
+            // If already paid (payment made before release), keep it as paid
+            $status = $reservation->status === 'paid' ? 'paid' : 'completed';
+            
             $reservation->update([
                 'end_time' => now(),
                 'cost' => $cost,
+                'status' => $status,
             ]);
         }
 

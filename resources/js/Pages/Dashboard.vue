@@ -134,11 +134,11 @@ const getTotalSpaces = (spaceType) => {
 };
 
 const getOccupiedSpaces = (spaceType) => {
-    return spaceType?.spaces?.filter(space => space.status === 'occupied').length || 0;
+    return spaceType?.spaces?.filter(space => space.is_currently_occupied).length || 0;
 };
 
 const getAvailableSpaces = (spaceType) => {
-    return spaceType?.spaces?.filter(space => space.status === 'available').length || 0;
+    return spaceType?.spaces?.filter(space => !space.is_currently_occupied).length || 0;
 };
 
 const getOccupancyPercentage = (spaceType) => {
@@ -157,14 +157,14 @@ const getNextAvailableTime = (spaceType) => {
     if (!spaceType?.spaces) return null;
     
     const occupiedSpaces = spaceType.spaces
-        .filter(space => space.status === 'occupied' && space.occupied_until)
-        .sort((a, b) => new Date(a.occupied_until) - new Date(b.occupied_until));
+        .filter(space => space.is_currently_occupied && space.current_occupation?.end_time)
+        .sort((a, b) => new Date(a.current_occupation.end_time) - new Date(b.current_occupation.end_time));
     
     if (occupiedSpaces.length === 0) {
         return null;
     }
     
-    const nextFree = new Date(occupiedSpaces[0].occupied_until);
+    const nextFree = new Date(occupiedSpaces[0].current_occupation.end_time);
     const now = new Date();
     
     if (nextFree <= now) {
@@ -183,9 +183,9 @@ const getNextAvailableTime = (spaceType) => {
 };
 
 const getTimeUntilFree = (space) => {
-    if (!space.occupied_until) return null;
+    if (!space.current_occupation?.end_time) return null;
     
-    const until = new Date(space.occupied_until);
+    const until = new Date(space.current_occupation.end_time);
     const now = new Date();
     
     if (until <= now) return 'Available now';

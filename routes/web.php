@@ -22,6 +22,7 @@ use Inertia\Inertia;
 
 Route::get('/', CustomerViewController::class)->name('customer.view');
 Route::get('/my-transactions', [CustomerViewController::class, 'transactions'])->middleware(['auth', 'verified'])->name('customer.transactions');
+Route::get('/my-reservation-history', [CustomerViewController::class, 'reservationHistory'])->middleware(['auth', 'verified'])->name('customer.reservation.history');
 
 // Password change routes
 Route::post('/password/change/request', [PasswordChangeController::class, 'requestChange'])->middleware(['auth', 'verified'])->name('password.change.request');
@@ -30,6 +31,11 @@ Route::post('/password/change/update', [PasswordChangeController::class, 'update
 
 Route::get('/auth/google', [GoogleAuthController::class, 'redirectToGoogle'])->name('auth.google.redirect');
 Route::get('/auth/google/callback', [GoogleAuthController::class, 'handleGoogleCallback'])->name('auth.google.callback');
+
+// Customer email verification
+Route::get('/customer/verify-email/{customer}', [GoogleAuthController::class, 'verifyCustomerEmail'])
+    ->middleware('signed')
+    ->name('customer.verify-email');
 
 // First-time admin setup routes - only accessible when no admin exists
 Route::middleware('guest')->group(function () {
@@ -103,11 +109,23 @@ Route::middleware(['auth', 'can:admin-access'])->prefix($adminPrefix)->group(fun
         Route::match(['put', 'patch'], 'user-management/{user}', [UserManagementController::class, 'update'])->name('user-management.update');
         Route::patch('user-management/{user}/toggle-status', [UserManagementController::class, 'toggleStatus'])->name('user-management.toggle-status');
         
-        // Permission management routes
+        // Permission management routes (old controller - keep for backward compatibility)
         Route::get('user-management/{user}/permissions', [UserPermissionController::class, 'edit'])->name('user-permissions.edit');
         Route::put('user-management/{user}/permissions', [UserPermissionController::class, 'update'])->name('user-permissions.update');
         Route::post('user-management/{user}/permissions/preset', [UserPermissionController::class, 'applyPreset'])->name('user-permissions.apply-preset');
         Route::post('user-management/{user}/permissions/toggle', [UserPermissionController::class, 'togglePermission'])->name('user-permissions.toggle');
+        
+        // New permission management routes
+        Route::get('permissions/users/{user}', [\App\Http\Controllers\UserPermissionManagementController::class, 'edit'])->name('permissions.users.edit');
+        Route::put('permissions/users/{user}', [\App\Http\Controllers\UserPermissionManagementController::class, 'update'])->name('permissions.users.update');
+        Route::post('permissions/users/{user}/toggle', [\App\Http\Controllers\UserPermissionManagementController::class, 'togglePermission'])->name('permissions.users.toggle');
+        Route::post('permissions/users/{user}/preset', [\App\Http\Controllers\UserPermissionManagementController::class, 'applyPreset'])->name('permissions.users.preset');
+        Route::post('permissions/users/{user}/assign-role', [\App\Http\Controllers\UserPermissionManagementController::class, 'assignRole'])->name('permissions.users.assign-role');
+        
+        // Role management routes
+        Route::resource('roles', \App\Http\Controllers\RoleController::class);
+        Route::post('roles/{role}/toggle-permission', [\App\Http\Controllers\RoleController::class, 'togglePermission'])->name('roles.toggle-permission');
+        Route::post('roles/{role}/apply-preset', [\App\Http\Controllers\RoleController::class, 'applyPreset'])->name('roles.apply-preset');
     });
     
     // Space management routes (Admin only)

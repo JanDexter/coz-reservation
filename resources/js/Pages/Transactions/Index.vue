@@ -2,9 +2,11 @@
 import { ref, computed } from 'vue';
 import { Head, Link, router } from '@inertiajs/vue3';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
+import PaymentModal from '@/Components/PaymentModal.vue';
 
 const props = defineProps({
     transactions: Object,
+    pendingPayments: Array,
     filters: Object,
     summary: Object,
 });
@@ -65,6 +67,31 @@ const applyTypeFilter = (type) => {
         preserveState: true,
         preserveScroll: true,
     });
+};
+
+// Payment modal state
+const showPaymentModal = ref(false);
+const selectedPaymentReservation = ref(null);
+
+const openPaymentModal = (payment) => {
+    selectedPaymentReservation.value = {
+        id: payment.id,
+        space_type_name: payment.space_type?.name,
+        space_name: payment.space?.name,
+        customer_name: payment.customer?.name,
+        customer_id: payment.customer?.id,
+        start_time: payment.start_time,
+        end_time: payment.end_time,
+        hours: payment.hours,
+        cost: payment.cost,
+        amount_paid: payment.amount_paid,
+    };
+    showPaymentModal.value = true;
+};
+
+const closePaymentModal = () => {
+    showPaymentModal.value = false;
+    selectedPaymentReservation.value = null;
 };
 </script>
 
@@ -198,6 +225,80 @@ const applyTypeFilter = (type) => {
                     </div>
                 </div>
 
+                <!-- Pending Payments Section -->
+                <div v-if="pendingPayments && pendingPayments.length > 0" class="mb-6 overflow-hidden rounded-xl bg-white shadow-lg">
+                    <div class="bg-gradient-to-r from-yellow-500 to-amber-500 px-6 py-4">
+                        <h3 class="text-lg font-bold text-white flex items-center gap-2">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                            Pending Payments ({{ pendingPayments.length }})
+                        </h3>
+                        <p class="text-sm text-yellow-50 mt-1">Unpaid reservations awaiting payment</p>
+                    </div>
+                    <div class="overflow-x-auto">
+                        <table class="min-w-full divide-y divide-gray-200">
+                            <thead class="bg-gray-50">
+                                <tr>
+                                    <th class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-600">ID</th>
+                                    <th class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-600">Customer</th>
+                                    <th class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-600">Space</th>
+                                    <th class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-600">Period</th>
+                                    <th class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-600">Hours</th>
+                                    <th class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-600">Total Cost</th>
+                                    <th class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-600">Balance Due</th>
+                                    <th class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-600">Action</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-gray-200 bg-white">
+                                <tr v-for="payment in pendingPayments" :key="payment.id" class="hover:bg-yellow-50">
+                                    <td class="whitespace-nowrap px-6 py-4 text-sm font-mono text-gray-900">
+                                        #{{ payment.id }}
+                                    </td>
+                                    <td class="whitespace-nowrap px-6 py-4 text-sm text-gray-900">
+                                        {{ payment.customer?.name || 'N/A' }}
+                                    </td>
+                                    <td class="whitespace-nowrap px-6 py-4 text-sm text-gray-900">
+                                        <div>{{ payment.space_type?.name || 'N/A' }}</div>
+                                        <div v-if="payment.space" class="text-xs text-gray-500">{{ payment.space.name }}</div>
+                                        <div v-if="payment.is_open_time" class="mt-1">
+                                            <span class="inline-flex items-center rounded-full bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-800">
+                                                Open Time
+                                            </span>
+                                        </div>
+                                    </td>
+                                    <td class="whitespace-nowrap px-6 py-4 text-xs text-gray-600">
+                                        <div>{{ formatDate(payment.start_time) }}</div>
+                                        <div>to {{ formatDate(payment.end_time) }}</div>
+                                    </td>
+                                    <td class="whitespace-nowrap px-6 py-4 text-sm text-gray-900">
+                                        {{ payment.hours || 0 }}h
+                                    </td>
+                                    <td class="whitespace-nowrap px-6 py-4 text-sm font-semibold text-gray-900">
+                                        {{ formatCurrency(payment.cost) }}
+                                    </td>
+                                    <td class="whitespace-nowrap px-6 py-4 text-sm">
+                                        <span class="font-bold text-red-600">
+                                            {{ formatCurrency(payment.balance) }}
+                                        </span>
+                                    </td>
+                                    <td class="whitespace-nowrap px-6 py-4 text-sm">
+                                        <button
+                                            @click="openPaymentModal(payment)"
+                                            class="inline-flex items-center gap-1 rounded-lg bg-green-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-green-700 transition-colors"
+                                        >
+                                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />
+                                            </svg>
+                                            Pay Now
+                                        </button>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
                 <!-- Transaction Logs Table -->
                 <div class="overflow-hidden rounded-xl bg-white shadow-lg">
                     <div class="overflow-x-auto">
@@ -296,5 +397,12 @@ const applyTypeFilter = (type) => {
                 </div>
             </div>
         </div>
+
+        <!-- Payment Modal -->
+        <PaymentModal
+            :show="showPaymentModal"
+            :reservation="selectedPaymentReservation"
+            @close="closePaymentModal"
+        />
     </AuthenticatedLayout>
 </template>

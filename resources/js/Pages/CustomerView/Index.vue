@@ -499,9 +499,12 @@ const isAuthenticated = computed(() => Boolean(props.auth?.user));
 const showAuthPrompt = ref(false);
 const showUserMenu = ref(false);
 const showTransactionHistory = ref(false);
+const showReservationHistory = ref(false);
 const showAccountSettings = ref(false);
 const customerTransactions = ref([]);
+const reservationHistory = ref([]);
 const loadingTransactions = ref(false);
+const loadingHistory = ref(false);
 const passwordChangeLoading = ref(false);
 const profileForm = ref({
     name: '',
@@ -559,6 +562,29 @@ const fetchTransactions = async () => {
 watch(showTransactionHistory, (isOpen) => {
     if (isOpen && customerTransactions.value.length === 0) {
         fetchTransactions();
+    }
+});
+
+// Fetch reservation history
+const fetchReservationHistory = async () => {
+    if (loadingHistory.value) return;
+    
+    loadingHistory.value = true;
+    try {
+        const response = await fetch(route('customer.reservation.history'));
+        const data = await response.json();
+        reservationHistory.value = data.history || [];
+    } catch (error) {
+        console.error('Failed to fetch reservation history:', error);
+        reservationHistory.value = [];
+    } finally {
+        loadingHistory.value = false;
+    }
+};
+
+watch(showReservationHistory, (isOpen) => {
+    if (isOpen && reservationHistory.value.length === 0) {
+        fetchReservationHistory();
     }
 });
 
