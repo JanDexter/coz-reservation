@@ -106,15 +106,16 @@ const closePaymentModal = () => {
                         <h2 class="font-semibold text-2xl text-gray-800 leading-tight">Transactions</h2>
                         <p class="text-sm text-gray-600 mt-1">Complete history of all financial transactions including refunds</p>
                     </div>
-                    <Link
+                    <a
                         :href="route('transactions.export', { filter: activeFilter, type: activeType })"
+                        download
                         class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded inline-flex items-center"
                     >
                         <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
                         </svg>
                         Download
-                    </Link>
+                    </a>
                 </div>
                 
                 <!-- Pending Refunds Alert -->
