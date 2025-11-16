@@ -163,7 +163,6 @@ Route::middleware(['auth', 'can:admin-access'])->prefix($adminPrefix)->group(fun
     Route::put('reservations/{reservation}', [AdminReservationController::class, 'update'])->name('admin.reservations.update');
     Route::post('reservations/{reservation}/close', [AdminReservationController::class, 'close'])->name('admin.reservations.close');
     Route::post('reservations/{reservation}/cancel', [AdminReservationController::class, 'cancel'])->name('admin.reservations.cancel');
-    Route::post('reservations/{reservation}/cancel', [AdminReservationController::class, 'cancel'])->name('admin.reservations.cancel');
 
     // Transaction routes
     Route::get('transactions', [TransactionController::class, 'index'])->name('transactions.index');
