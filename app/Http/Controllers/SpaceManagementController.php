@@ -26,10 +26,8 @@ class SpaceManagementController extends Controller
                 $query->with([
                     'currentCustomer',
                     'reservations' => function($q) use ($now, $nowPlusBuffer) {
-                        // Get the currently active reservation for this space
-                        // Active = started, not yet ended (end_time is null)
-                        $q->whereNull('end_time')  // Only reservations without an end_time are truly active
-                        ->where('start_time', '<=', $nowPlusBuffer)
+                        // Get active or upcoming reservations
+                        $q->whereNull('end_time')  // Only reservations without an end_time
                         ->where(function($sub) {
                             $sub->whereNull('status')
                               ->orWhereNotIn('status', ['cancelled']);  // Exclude only cancelled
@@ -55,19 +53,40 @@ class SpaceManagementController extends Controller
         // Transform to include reservation info in spaces
         $spaceTypes->each(function($spaceType) use ($now, $nowPlusBuffer) {
             // Update each space with dynamic status based on current active reservation
-            $spaceType->spaces->each(function($space) use ($now) {
-                $activeReservation = $space->reservations->first();
+            $spaceType->spaces->each(function($space) use ($now, $nowPlusBuffer) {
+                // Get active reservation (already started)
+                $activeReservation = $space->reservations
+                    ->where('start_time', '<=', $nowPlusBuffer)
+                    ->first();
                 
-                // Determine status: prioritize active reservation, then check database status
+                // Get future reservations (haven't started yet)
+                $futureReservations = $space->reservations
+                    ->where('start_time', '>', $nowPlusBuffer)
+                    ->sortBy('start_time')
+                    ->values();
+                
+                // Get the next upcoming reservation
+                $nextReservation = $futureReservations->first();
+                
+                // Determine status
                 if ($activeReservation) {
                     // There's an active reservation right now
                     $space->dynamic_status = 'occupied';
                     $space->active_reservation = $activeReservation;
                     $space->current_customer_name = $activeReservation->customer->display_name ?? $activeReservation->customer->name;
+                } elseif ($nextReservation) {
+                    // No active reservation, but there's a future booking
+                    $space->dynamic_status = 'scheduled';
+                    $space->active_reservation = null;
+                    $space->next_reservation = $nextReservation;
+                    $space->next_booking_in_hours = round($now->diffInMinutes($nextReservation->start_time) / 60, 1);
+                    $space->next_customer_name = $nextReservation->customer->display_name ?? $nextReservation->customer->name;
+                    $space->current_customer_name = null;
                 } elseif ($space->status === 'occupied' && $space->current_customer_id) {
-                    // Space is marked as occupied in database (reservation might be just created or slightly in future)
+                    // Space is marked as occupied in database but no reservation found
                     $space->dynamic_status = 'occupied';
                     $space->active_reservation = null;
+                    $space->next_reservation = null;
                     $space->current_customer_name = $space->currentCustomer 
                         ? ($space->currentCustomer->display_name ?? $space->currentCustomer->name)
                         : null;
@@ -75,8 +94,13 @@ class SpaceManagementController extends Controller
                     // No active reservation and not marked as occupied
                     $space->dynamic_status = $space->status; // Use actual status (available/maintenance/etc)
                     $space->active_reservation = null;
+                    $space->next_reservation = null;
                     $space->current_customer_name = null;
                 }
+                
+                // Always include future reservations count for info
+                $space->future_reservations_count = $futureReservations->count();
+                $space->future_reservations = $futureReservations->take(3); // Show up to 3 upcoming bookings
             });
             
             // Get unassigned reservations (no space_id) for this space type

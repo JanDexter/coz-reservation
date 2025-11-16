@@ -744,9 +744,10 @@ const closePaymentModal = () => {
 };
 
 const getStatusColor = (status) => {
-    return status === 'available' 
-        ? 'bg-green-100 text-green-800' 
-        : 'bg-red-100 text-red-800';
+    if (status === 'available') return 'bg-green-100 text-green-800';
+    if (status === 'scheduled') return 'bg-blue-100 text-blue-800';
+    if (status === 'occupied') return 'bg-red-100 text-red-800';
+    return 'bg-gray-100 text-gray-800';
 };
 
 const getTotalSpaces = (spaceType) => {
@@ -1352,8 +1353,30 @@ const findSpaceById = (spaceId) => {
                                             <div v-if="(space.dynamic_status || space.status) === 'occupied'" class="text-xs font-medium text-blue-600 mt-1">
                                                 {{ formatTimeDisplay(space) }}
                                             </div>
+                                            <div v-if="(space.dynamic_status || space.status) === 'scheduled'" class="text-xs font-medium text-blue-600 mt-1">
+                                                📅 Booked for later
+                                            </div>
                                         </div>
-                                    </div>                                    <!-- Space Details -->
+                                    </div>
+                                    
+                                    <!-- Scheduled Booking Info -->
+                                    <div v-if="(space.dynamic_status || space.status) === 'scheduled' && space.next_reservation" class="mb-3 p-2 bg-blue-50 border border-blue-200 rounded">
+                                        <p class="text-xs font-semibold text-blue-800 mb-1">⏰ Next Booking</p>
+                                        <p class="text-xs text-blue-700">
+                                            <span class="font-medium">{{ space.next_customer_name }}</span>
+                                        </p>
+                                        <p class="text-xs text-blue-600 mt-1">
+                                            Starts in <span class="font-semibold">{{ space.next_booking_in_hours }}</span> hours
+                                        </p>
+                                        <p class="text-xs text-blue-500">
+                                            {{ formatLocalDateTime(space.next_reservation.start_time) }}
+                                        </p>
+                                        <p v-if="space.future_reservations_count > 1" class="text-xs text-blue-500 mt-1 italic">
+                                            +{{ space.future_reservations_count - 1 }} more booking(s) scheduled
+                                        </p>
+                                    </div>
+                                    
+                                    <!-- Space Details -->
                                     <div v-if="(space.dynamic_status || space.status) === 'occupied' && (space.active_reservation || space.current_customer)" class="mb-3">
                                         <p class="text-sm text-gray-600">Occupied by:</p>
                                         <p class="text-sm font-medium text-gray-900 truncate">
@@ -1372,10 +1395,18 @@ const findSpaceById = (spaceId) => {
                                                 Open Time (No end limit)
                                             </span>
                                         </div>
+                                        
+                                        <!-- Show next booking after current one -->
+                                        <div v-if="space.next_reservation" class="mt-2 p-2 bg-amber-50 border border-amber-200 rounded">
+                                            <p class="text-xs font-semibold text-amber-800">⚠️ Next booking after this:</p>
+                                            <p class="text-xs text-amber-700">
+                                                {{ space.next_customer_name }} at {{ formatLocalDateTime(space.next_reservation.start_time) }}
+                                            </p>
+                                        </div>
                                     </div>
 
                                     <!-- Pricing Information -->
-                                    <div v-if="(space.dynamic_status || space.status) === 'available'" class="mb-3 p-2 bg-green-50 rounded">
+                                    <div v-if="(space.dynamic_status || space.status) === 'available' || (space.dynamic_status || space.status) === 'scheduled'" class="mb-3 p-2 bg-green-50 rounded">
                                         <p class="text-xs text-green-700 font-medium">Available for booking</p>
                                         <p class="text-xs text-green-600">
                                             ₱{{ space.hourly_rate || spaceType.hourly_rate || spaceType.default_price }}/hour
@@ -1383,12 +1414,23 @@ const findSpaceById = (spaceId) => {
                                         <p v-if="spaceType.default_discount_hours" class="text-xs text-green-600">
                                             {{ spaceType.default_discount_percentage }}% off after {{ spaceType.default_discount_hours }}h
                                         </p>
+                                        
+                                        <!-- Show if there are future bookings even when currently available -->
+                                        <div v-if="space.next_reservation" class="mt-2 pt-2 border-t border-green-200">
+                                            <p class="text-xs font-semibold text-amber-700">⏰ Upcoming booking:</p>
+                                            <p class="text-xs text-amber-600">
+                                                {{ space.next_customer_name }} in {{ space.next_booking_in_hours }} hours
+                                            </p>
+                                            <p class="text-xs text-amber-500">
+                                                {{ formatLocalDateTime(space.next_reservation.start_time) }}
+                                            </p>
+                                        </div>
                                     </div>
 
                                     <!-- Actions -->
                                     <div class="flex space-x-2">
                                         <button
-                                            v-if="(space.dynamic_status || space.status) === 'available'"
+                                            v-if="(space.dynamic_status || space.status) === 'available' || (space.dynamic_status || space.status) === 'scheduled'"
                                             @click="assignSpace(space.id)"
                                             class="flex-1 bg-blue-500 hover:bg-blue-600 text-white text-xs py-1 px-2 rounded"
                                             :disabled="assigningSpace === space.id"
@@ -1397,7 +1439,7 @@ const findSpaceById = (spaceId) => {
                                         </button>
 
                                         <button
-                                            v-if="(space.dynamic_status || space.status) === 'available'"
+                                            v-if="(space.dynamic_status || space.status) === 'available' || (space.dynamic_status || space.status) === 'scheduled'"
                                             @click="startOpenTime(space)"
                                             class="flex-1 bg-green-500 hover:bg-green-600 text-white text-xs py-1 px-2 rounded"
                                         >
