@@ -46,21 +46,38 @@ return Application::configure(basePath: dirname(__DIR__))
         //
     })
     ->withExceptions(function (Exceptions $exceptions): void {
-        $exceptions->respond(function (\Symfony\Component\HttpFoundation\Response $response) {
-            if ($response->getStatusCode() === 404) {
-                return inertia('Errors/404', [
-                    'status' => 404
-                ])
-                ->toResponse(request())
-                ->setStatusCode(404);
+        $exceptions->respond(function (\Symfony\Component\HttpFoundation\Response $response, \Throwable $exception, \Illuminate\Http\Request $request) {
+            $statusCode = $response->getStatusCode();
+
+            // Handle 404 errors
+            if ($statusCode === 404) {
+                // If it's an Inertia request, return Inertia response
+                if ($request->header('X-Inertia')) {
+                    return inertia('Errors/404', [
+                        'status' => 404
+                    ])
+                    ->toResponse($request)
+                    ->setStatusCode(404);
+                }
+                
+                // For regular requests, return blade view
+                return response()->view('errors.404', ['exception' => $exception], 404);
             }
 
-            if (in_array($response->getStatusCode(), [500, 503, 403])) {
-                return inertia('Errors/Error', [
-                    'status' => $response->getStatusCode()
-                ])
-                ->toResponse(request())
-                ->setStatusCode($response->getStatusCode());
+            // Handle other error codes (500, 503, 403)
+            if (in_array($statusCode, [500, 503, 403])) {
+                // If it's an Inertia request, return Inertia response
+                if ($request->header('X-Inertia')) {
+                    return inertia('Errors/Error', [
+                        'status' => $statusCode
+                    ])
+                    ->toResponse($request)
+                    ->setStatusCode($statusCode);
+                }
+                
+                // For regular requests, return blade view
+                $viewName = view()->exists("errors.{$statusCode}") ? "errors.{$statusCode}" : 'errors.500';
+                return response()->view($viewName, ['exception' => $exception], $statusCode);
             }
 
             return $response;

@@ -56,7 +56,7 @@
             <div class="mt-8 pt-8 border-t border-gray-200">
                 <p class="text-sm text-gray-500">
                     Need help? 
-                    <a href="{{ route('customer.view') }}" class="text-[#2f4686] hover:text-[#3956a3] font-medium underline">
+                    <a href="https://www.facebook.com/COZeeNarra" target="_blank" rel="noopener noreferrer" class="text-[#2f4686] hover:text-[#3956a3] font-medium underline">
                         Contact us
                     </a>
                     for assistance.

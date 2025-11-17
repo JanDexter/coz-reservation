@@ -76,15 +76,17 @@ const selectedPaymentReservation = ref(null);
 const openPaymentModal = (payment) => {
     selectedPaymentReservation.value = {
         id: payment.id,
-        space_type_name: payment.space_type?.name,
+        space_type: payment.space_type?.name,
         space_name: payment.space?.name,
         customer_name: payment.customer?.name,
         customer_id: payment.customer?.id,
         start_time: payment.start_time,
         end_time: payment.end_time,
         hours: payment.hours,
+        total_cost: payment.cost,  // PaymentModal expects total_cost
         cost: payment.cost,
         amount_paid: payment.amount_paid,
+        amount_remaining: payment.balance,  // Add the remaining balance
     };
     showPaymentModal.value = true;
 };
