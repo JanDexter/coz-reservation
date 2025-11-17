@@ -85,9 +85,9 @@ class Reservation extends Model
 
     public function scopeActive($query)
     {
-        // Active = currently in use (not ended and not finished/cancelled)
-        return $query->whereNotIn('status', ['completed', 'cancelled', 'paid'])
-            ->whereNull('end_time'); // Only reservations that haven't ended yet
+        // Active = reservations that occupy a slot (exclude only cancelled and completed)
+        // As long as a reservation exists and isn't cancelled or completed, it takes up space
+        return $query->whereNotIn('status', ['cancelled', 'completed']);
     }
 
     public function scopeOverlapping($query, Carbon $start, ?Carbon $end)
