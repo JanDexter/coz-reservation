@@ -220,7 +220,8 @@ class PublicReservationController extends Controller
         }
 
         // VALIDATION: Check for overlapping reservations for this customer
-        $hasOverlappingReservation = $customer->reservations()
+        // Check all of this customer's active reservations regardless of space/space_type
+        $hasOverlappingReservation = Reservation::where('customer_id', $customer->id)
             ->whereNotIn('status', ['cancelled', 'completed'])
             ->overlapping($startTime, $endTime)
             ->exists();
