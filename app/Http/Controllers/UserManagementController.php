@@ -85,10 +85,12 @@ class UserManagementController extends Controller
         $validated = $request->validate([
             'name' => 'required|string|max:255',
             'email' => 'required|email|unique:users,email', // Unique email validation enforced
-            'phone' => 'nullable|string|max:20',
+            'phone' => ['nullable', 'string', 'regex:/^(\+63\d{10}|09\d{9})$/'],
             'password' => 'required|string|min:8|confirmed',
             'role' => ['required', Rule::in(['customer', 'staff', 'admin'])],
             'is_active' => 'boolean',
+        ], [
+            'phone.regex' => 'Invalid phone number format. Please use +639XXXXXXXXX or 09XXXXXXXXX format.',
         ]);
 
         DB::beginTransaction();
@@ -214,9 +216,11 @@ class UserManagementController extends Controller
         $validated = $request->validate([
             'name' => 'required|string|max:255',
             'email' => ['required', 'email', Rule::unique('users')->ignore($user->id)], // Ignore current user's email
-            'phone' => 'nullable|string|max:20',
+            'phone' => ['nullable', 'string', 'regex:/^(\+63\d{10}|09\d{9})$/'],
             'role' => ['required', Rule::in(['customer', 'staff', 'admin'])],
             'is_active' => 'boolean',
+        ], [
+            'phone.regex' => 'Invalid phone number format. Please use +639XXXXXXXXX or 09XXXXXXXXX format.',
         ]);
 
         DB::beginTransaction();

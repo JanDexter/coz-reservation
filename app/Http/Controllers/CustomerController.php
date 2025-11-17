@@ -60,13 +60,15 @@ class CustomerController extends Controller
             'name' => 'required|string|max:255',
             'company_name' => 'nullable|string|max:255',
             'email' => 'required|email|max:255|unique:customers,email',
-            'phone' => ['nullable', 'string', 'min:10', 'max:15'],
+            'phone' => ['nullable', 'string', 'regex:/^(\+63\d{10}|09\d{9})$/'],
             'address' => 'nullable|string',
             'website' => 'nullable|string|max:255',
             'status' => 'required|in:active,inactive',
             'notes' => 'nullable|string',
             'amount_paid' => 'nullable|numeric|min:0',
             'space_type_id' => 'nullable|exists:space_types,id',
+        ], [
+            'phone.regex' => 'Invalid phone number format. Please use +639XXXXXXXXX or 09XXXXXXXXX format.',
         ]);
 
     $validated['user_id'] = Auth::id();
@@ -139,12 +141,14 @@ class CustomerController extends Controller
             'name' => 'required|string|max:255',
             'company_name' => 'nullable|string|max:255',
             'email' => 'required|email|max:255|unique:customers,email,' . $customer->id,
-            'phone' => ['nullable', 'string', 'min:10', 'max:15'],
+            'phone' => ['nullable', 'string', 'regex:/^(\+63\d{10}|09\d{9})$/'],
             'address' => 'nullable|string',
             'website' => 'nullable|string|max:255',
             'status' => 'required|in:active,inactive',
             'notes' => 'nullable|string',
             'amount_paid' => 'nullable|numeric|min:0',
+        ], [
+            'phone.regex' => 'Invalid phone number format. Please use +639XXXXXXXXX or 09XXXXXXXXX format.',
         ]);
 
         $validated['company_name'] = strip_tags($validated['company_name'] ?? '');
