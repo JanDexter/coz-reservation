@@ -495,6 +495,12 @@ const bookingHours = ref(1); // duration in hours
 const bookingPax = ref(1);
 const showAvailability = ref(false);
 const isAuthenticated = computed(() => Boolean(props.auth?.user));
+const isStaffOrAdmin = computed(() => {
+    const user = props.auth?.user;
+    if (!user) return false;
+    // Check if user has staff or admin role
+    return user.roles?.some(role => ['staff', 'admin'].includes(role.toLowerCase())) || false;
+});
 const showAuthPrompt = ref(false);
 const showUserMenu = ref(false);
 const showTransactionHistory = ref(false);
@@ -793,6 +799,7 @@ const decoratedSpacesWithAvailability = computed(() => {
                 : 'Call for availability',
             progress,
             canAccommodate,
+            available_slots: availInfo.available_slots || [], // Include available time slots for conference rooms
         };
     });
 });
@@ -821,6 +828,12 @@ const openPayment = (space) => {
         return;
     }
     
+    // Prevent staff/admin from booking for themselves
+    if (isStaffOrAdmin.value) {
+        alert('Staff and admin users cannot book spaces for themselves. Please use the admin dashboard to create reservations for customers.');
+        return;
+    }
+    
     // Must check availability first
     if (!showAvailability.value) {
         alert('Please check availability first by selecting a date, time, hours, and number of people, then clicking "Check Availability".');
@@ -846,6 +859,22 @@ const openPayment = (space) => {
     };
     formErrors.value = {};
     showPaymentModal.value = true;
+};
+
+const bookAlternativeSlot = (space, slot) => {
+    // Update booking time to the selected slot
+    bookingStart.value = slot.start_time;
+    
+    // Re-check availability with the new time
+    const currentDate = bookingDate.value;
+    bookingDate.value = currentDate; // Trigger re-check
+    
+    showToast(`Selected time slot: ${slot.start_time} - ${slot.end_time}`, 'success', 3000);
+    
+    // Automatically check availability with new time
+    setTimeout(() => {
+        checkAvailability();
+    }, 100);
 };
 
 const closePayment = () => {
@@ -1629,14 +1658,6 @@ const copyToClipboard = async (text, label = 'Text') => {
                             
                         </section>
 
-                        <!-- Offline Data View -->
-                        <OfflineDataView 
-                            ref="offlineDataViewRef"
-                            :is-online="isOnline"
-                            @copy-success="(msg) => showToast(msg, 'success', 2000)"
-                            @data-cleared="() => showToast('Offline data cleared', 'success', 2000)"
-                        />
-
                         <section id="spaces" class="space-y-6 pt-12">
                                 <div class="flex flex-wrap items-center justify-between gap-4">
                                     <div>
@@ -1782,6 +1803,25 @@ const copyToClipboard = async (text, label = 'Text') => {
                                                     <path stroke-linecap="round" stroke-linejoin="round" d="M17 8l4 4m0 0l-4 4m4-4H3" />
                                                 </svg>
                                             </button>
+
+                                            <!-- Available time slots for conference rooms -->
+                                            <div v-if="showAvailability && !space.isAvailable && space.available_slots && space.available_slots.length > 0" class="mt-4 p-3 bg-blue-50 rounded-lg border border-blue-200">
+                                                <p class="text-xs font-semibold text-blue-900 mb-2">Available time slots today:</p>
+                                                <div class="grid grid-cols-2 gap-2 max-h-32 overflow-y-auto">
+                                                    <button
+                                                        v-for="(slot, index) in space.available_slots.slice(0, 8)"
+                                                        :key="index"
+                                                        type="button"
+                                                        @click="bookAlternativeSlot(space, slot)"
+                                                        class="text-xs px-2 py-1.5 bg-white hover:bg-blue-100 border border-blue-300 rounded text-blue-800 font-medium transition-colors"
+                                                    >
+                                                        {{ slot.start_time }} - {{ slot.end_time }}
+                                                    </button>
+                                                </div>
+                                                <p v-if="space.available_slots.length > 8" class="text-xs text-blue-700 mt-2 text-center">
+                                                    +{{ space.available_slots.length - 8 }} more slots available
+                                                </p>
+                                            </div>
                                         </div>
                                     </div>
                                 </article>

@@ -23,6 +23,7 @@ class AdminReservationController extends Controller
             'hours' => 'nullable|numeric|min:0',
             'pax' => 'nullable|integer|min:1',
             'notes' => 'nullable|string|max:1000',
+            'remove_discount' => 'nullable|boolean',
         ]);
 
         $reservation->loadMissing('spaceType');
@@ -123,6 +124,19 @@ class AdminReservationController extends Controller
 
             if (array_key_exists('notes', $updates) && $updates['notes']) {
                 $updates['notes'] = strip_tags($updates['notes']);
+            }
+
+            // Handle discount removal for future reservations
+            if (!empty($validated['remove_discount']) && $reservation->is_discounted) {
+                $updates['is_discounted'] = false;
+                $updates['applied_discount_percentage'] = null;
+                $updates['applied_discount_hours'] = null;
+                
+                // Recalculate total cost without discount
+                if ($reservation->hours && $reservation->spaceType) {
+                    $hourlyRate = $reservation->spaceType->hourly_rate ?? 0;
+                    $updates['total_cost'] = $reservation->hours * $hourlyRate;
+                }
             }
 
             $reservation->fill($updates);

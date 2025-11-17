@@ -50,6 +50,7 @@ const form = useForm({
     hours: '',
     pax: '',
     notes: '',
+    remove_discount: false,
 });
 
 const formatCurrency = (value) => {
@@ -98,6 +99,7 @@ watch(
             hours: reservation.hours ?? '',
             pax: reservation.pax ?? '',
             notes: reservation.notes || '',
+            remove_discount: false,
         });
         form.reset();
         form.clearErrors();
@@ -233,6 +235,10 @@ const cancelReservation = () => {
                     <div class="border border-gray-200 rounded-xl p-4 bg-gray-50">
                         <h3 class="mb-3 text-sm font-semibold uppercase tracking-wide text-gray-500">Payment Summary</h3>
                         <ul class="space-y-2 text-sm">
+                            <li v-if="localReservation?.is_discounted" class="flex items-center justify-between">
+                                <span class="text-gray-600">Discount Applied</span>
+                                <span class="font-semibold text-emerald-600">{{ localReservation.applied_discount_percentage }}%</span>
+                            </li>
                             <li class="flex items-center justify-between">
                                 <span class="text-gray-600">Total Cost</span>
                                 <span class="font-semibold text-gray-900">{{ formatCurrency(totalCost) }}</span>
@@ -369,6 +375,24 @@ const cancelReservation = () => {
                                 class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-[#2f4686] focus:ring-[#2f4686]"
                             ></textarea>
                             <p v-if="form.errors.notes" class="mt-1 text-xs text-red-500">{{ form.errors.notes }}</p>
+                        </div>
+
+                        <!-- Discount Removal Option (only for future reservations with discount) -->
+                        <div v-if="localReservation?.is_future && localReservation?.is_discounted" class="rounded-lg border border-amber-200 bg-amber-50 p-4">
+                            <label class="flex items-center gap-3 cursor-pointer">
+                                <input
+                                    type="checkbox"
+                                    v-model="form.remove_discount"
+                                    class="h-4 w-4 rounded border-gray-300 text-red-600 focus:ring-red-500"
+                                />
+                                <div class="flex-1">
+                                    <span class="block text-sm font-semibold text-gray-900">Remove Discount</span>
+                                    <span class="block text-xs text-gray-600">
+                                        This will remove the {{ localReservation.applied_discount_percentage }}% discount and recalculate the total cost.
+                                    </span>
+                                </div>
+                            </label>
+                            <p v-if="form.errors.remove_discount" class="mt-2 text-xs text-red-500">{{ form.errors.remove_discount }}</p>
                         </div>
                     </div>
                 </div>
