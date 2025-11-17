@@ -86,6 +86,7 @@ Route::middleware(['throttle:60,1'])->group(function () {
 // Authenticated admin area behind configurable prefix (admin only)
 Route::middleware(['auth', 'can:admin-access'])->prefix($adminPrefix)->group(function () {
     Route::get('dashboard', [DashboardController::class, 'index'])->name('dashboard');
+    Route::get('spaces/{space}/reservations', [DashboardController::class, 'spaceReservations'])->name('spaces.reservations');
     
     // Customer management routes 
     Route::get('customers', [CustomerController::class, 'index'])->name('customers.index');

@@ -30,38 +30,67 @@ class DashboardController extends Controller
                 $query->with([
                     'currentCustomer',
                     'reservations' => function($q) use ($now) {
-                        // Get currently active reservations (started but not ended)
-                        $q->where('start_time', '<=', $now)
-                          ->where(function($sub) use ($now) {
-                              $sub->whereNull('end_time')
-                                  ->orWhere('end_time', '>', $now);
+                        // Get currently active reservations AND future reservations
+                        $q->where(function($sub) use ($now) {
+                              // Current: started but not ended
+                              $sub->where('start_time', '<=', $now)
+                                  ->where(function($endSub) use ($now) {
+                                      $endSub->whereNull('end_time')
+                                          ->orWhere('end_time', '>', $now);
+                                  });
                           })
-                          ->whereNotIn('status', ['completed', 'cancelled'])
+                          ->orWhere(function($sub) use ($now) {
+                              // Future: starts after now
+                              $sub->where('start_time', '>', $now);
+                          })
+                          ->whereNotIn('status', ['completed', 'cancelled', 'refunded'])
                           ->with('customer')
-                          ->orderBy('start_time', 'desc');
+                          ->orderBy('start_time', 'asc');
                     }
                 ]);
             }
         ])->get();
         
-        // Add dynamic occupation status to each space based on active reservations
+        // Add dynamic occupation status to each space based on active and future reservations
         $spaceTypes->each(function($spaceType) use ($now) {
             $spaceType->spaces->each(function($space) use ($now) {
-                $activeReservation = $space->reservations->first();
+                $currentReservation = null;
+                $futureReservations = [];
                 
-                if ($activeReservation) {
+                foreach ($space->reservations as $reservation) {
+                    if ($reservation->start_time <= $now && (!$reservation->end_time || $reservation->end_time > $now)) {
+                        // This is a current active reservation
+                        $currentReservation = $reservation;
+                    } elseif ($reservation->start_time > $now) {
+                        // This is a future reservation
+                        $futureReservations[] = [
+                            'customer_name' => $reservation->customer->display_name ?? $reservation->customer->name ?? $reservation->customer->company_name,
+                            'start_time' => $reservation->start_time,
+                            'end_time' => $reservation->end_time,
+                            'reservation_id' => $reservation->id,
+                            'status' => $reservation->status,
+                            'pax' => $reservation->pax,
+                        ];
+                    }
+                }
+                
+                if ($currentReservation) {
                     $space->is_currently_occupied = true;
                     $space->current_occupation = [
-                        'customer_name' => $activeReservation->customer->display_name ?? $activeReservation->customer->name ?? $activeReservation->customer->company_name,
-                        'start_time' => $activeReservation->start_time,
-                        'end_time' => $activeReservation->end_time,
-                        'reservation_id' => $activeReservation->id,
-                        'status' => $activeReservation->status,
+                        'customer_name' => $currentReservation->customer->display_name ?? $currentReservation->customer->name ?? $currentReservation->customer->company_name,
+                        'start_time' => $currentReservation->start_time,
+                        'end_time' => $currentReservation->end_time,
+                        'reservation_id' => $currentReservation->id,
+                        'status' => $currentReservation->status,
                     ];
                 } else {
                     $space->is_currently_occupied = false;
                     $space->current_occupation = null;
                 }
+                
+                // Add future reservations info
+                $space->future_reservations = $futureReservations;
+                $space->has_future_reservations = count($futureReservations) > 0;
                 
                 // Unset the reservations collection to keep response size manageable
                 unset($space->reservations);
@@ -189,4 +218,56 @@ class DashboardController extends Controller
             'sort_dir' => $sortDir,
         ]);
     }
+
+    /**
+     * Get all reservations for a specific space
+     */
+    public function spaceReservations(Space $space)
+    {
+        $reservations = Reservation::where('space_id', $space->id)
+            ->with(['customer', 'space.spaceType'])
+            ->whereNotIn('status', ['cancelled', 'refunded'])
+            ->orderBy('start_time', 'asc')
+            ->get()
+            ->map(function($reservation) {
+                $now = now();
+                $isActive = $reservation->start_time <= $now && (!$reservation->end_time || $reservation->end_time > $now);
+                $isFuture = $reservation->start_time > $now;
+                $isPast = $reservation->end_time && $reservation->end_time <= $now;
+                
+                return [
+                    'id' => $reservation->id,
+                    'customer_name' => $reservation->customer->company_name ?? $reservation->customer->name ?? 'N/A',
+                    'customer_email' => $reservation->customer->email ?? null,
+                    'customer_phone' => $reservation->customer->phone ?? null,
+                    'space_name' => $reservation->space->name ?? 'N/A',
+                    'space_type' => $reservation->space->spaceType->name ?? 'N/A',
+                    'start_time' => $reservation->start_time,
+                    'end_time' => $reservation->end_time,
+                    'cost' => $reservation->cost ?? $reservation->total_cost,
+                    'total_cost' => $reservation->total_cost,
+                    'status' => $reservation->status,
+                    'payment_method' => $reservation->payment_method,
+                    'amount_paid' => $reservation->amount_paid,
+                    'amount_remaining' => $reservation->amount_remaining,
+                    'hours' => $reservation->hours,
+                    'pax' => $reservation->pax,
+                    'is_open_time' => $reservation->is_open_time,
+                    'notes' => $reservation->notes,
+                    'is_active' => $isActive,
+                    'is_future' => $isFuture,
+                    'is_past' => $isPast,
+                ];
+            });
+
+        return response()->json([
+            'space' => [
+                'id' => $space->id,
+                'name' => $space->name,
+                'space_type' => $space->spaceType->name ?? 'N/A',
+            ],
+            'reservations' => $reservations,
+        ]);
+    }
 }
+

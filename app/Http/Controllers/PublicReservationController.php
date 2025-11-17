@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Customer;
+use App\Models\Reservation;
 use App\Models\TransactionLog;
 use App\Models\SpaceType;
 use App\Models\Refund;
@@ -44,6 +45,7 @@ class PublicReservationController extends Controller
         $startTime = $this->adjustStartTimeIfNeeded($startTime);
         $endTime = (clone $startTime)->addHours($validated['hours']);
         $requestedPax = $validated['pax'] ?? 1;
+        $requestedHours = $validated['hours'];
 
         $spaceTypes = SpaceType::all();
         $availability = [];
@@ -52,7 +54,7 @@ class PublicReservationController extends Controller
             $availableCapacity = $spaceType->getAvailableCapacity($startTime, $endTime);
             $canAccommodate = $availableCapacity >= $requestedPax;
             
-            $availability[] = [
+            $spaceData = [
                 'id' => $spaceType->id,
                 'name' => $spaceType->name,
                 'total_slots' => $spaceType->total_slots,
@@ -61,6 +63,18 @@ class PublicReservationController extends Controller
                 'can_accommodate' => $canAccommodate,
                 'is_available' => $canAccommodate,
             ];
+
+            // For conference rooms, provide alternative available time slots
+            if (stripos($spaceType->name, 'conference') !== false && !$canAccommodate) {
+                $spaceData['available_slots'] = $this->getAvailableTimeSlots(
+                    $spaceType, 
+                    $startTime, 
+                    $requestedHours, 
+                    $requestedPax
+                );
+            }
+            
+            $availability[] = $spaceData;
         }
 
         return response()->json([
@@ -68,6 +82,43 @@ class PublicReservationController extends Controller
             'start_time' => $startTime->toIso8601String(),
             'end_time' => $endTime->toIso8601String(),
         ]);
+    }
+
+    /**
+     * Get available time slots for conference rooms from 9am to 12am
+     */
+    private function getAvailableTimeSlots(SpaceType $spaceType, Carbon $requestedStart, int $hours, int $pax)
+    {
+        $date = $requestedStart->copy()->setTime(0, 0, 0);
+        $dayStart = $date->copy()->setTime(9, 0, 0); // 9 AM
+        $dayEnd = $date->copy()->setTime(23, 59, 59); // 12 AM (end of day)
+        
+        $availableSlots = [];
+        $slotStart = $dayStart->copy();
+
+        // Check every hour from 9am to 12am
+        while ($slotStart->lessThan($dayEnd)) {
+            $slotEnd = $slotStart->copy()->addHours($hours);
+            
+            // Make sure slot doesn't extend past midnight
+            if ($slotEnd->greaterThan($dayEnd)) {
+                break;
+            }
+
+            // Check if this slot is available
+            $capacity = $spaceType->getAvailableCapacity($slotStart, $slotEnd);
+            if ($capacity >= $pax) {
+                $availableSlots[] = [
+                    'start_time' => $slotStart->format('H:i'),
+                    'end_time' => $slotEnd->format('H:i'),
+                    'available_capacity' => $capacity,
+                ];
+            }
+
+            $slotStart->addHour();
+        }
+
+        return $availableSlots;
     }
     public function store(Request $request)
     {
@@ -265,7 +316,7 @@ class PublicReservationController extends Controller
         });
 
         // Load the spaceType relationship to avoid N+1 and ensure space_type data is available
-        $reservation->load('spaceType');
+        $reservation->load(['spaceType', 'space']);
 
         return redirect()
             ->route('customer.view')
@@ -274,7 +325,7 @@ class PublicReservationController extends Controller
                 'status' => $reservation->status,
                 'total_cost' => $reservation->total_cost,
                 'space_type_name' => $reservation->spaceType->name ?? null,
-                'space_name' => $reservation->space->name ?? null,
+                'space_name' => optional($reservation->space)->name ?? $reservation->spaceType->name ?? null,
             ]);
     }
 
