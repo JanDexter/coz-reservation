@@ -986,16 +986,27 @@ const confirmPayment = () => {
     // Build start_time from booking date and time if available
     // Keep the time as-is in Philippine timezone (don't convert to UTC)
     let startTime = null;
+    let endTime = null;
+    
     if (bookingDate.value && bookingStart.value) {
         // Send the datetime string as-is: "2025-11-17T16:00:00"
         // Backend will interpret this as Philippine time
         startTime = `${bookingDate.value}T${bookingStart.value}:00`;
+        
+        // Calculate end time by parsing the time string and adding hours
+        // Keep it in the same format without timezone conversion
+        const [hours, minutes] = bookingStart.value.split(':').map(Number);
+        const totalMinutes = hours * 60 + minutes + (Number(bookingHours.value || 1) * 60);
+        const endHours = Math.floor(totalMinutes / 60);
+        const endMinutes = totalMinutes % 60;
+        const endTimeString = `${String(endHours).padStart(2, '0')}:${String(endMinutes).padStart(2, '0')}:00`;
+        endTime = `${bookingDate.value}T${endTimeString}`;
     } else {
-        startTime = new Date().toISOString();
+        // Fallback to current time if booking time not specified
+        const now = new Date();
+        startTime = now.toISOString();
+        endTime = new Date(now.getTime() + (Number(bookingHours.value || 1) * 60 * 60 * 1000)).toISOString();
     }
-    
-    // Calculate end time - keep in same format
-    const endTime = new Date(new Date(startTime).getTime() + (Number(bookingHours.value || 1) * 60 * 60 * 1000)).toISOString();
     
     // Check for overlapping reservations
     if (hasOverlappingReservation(startTime, endTime)) {
