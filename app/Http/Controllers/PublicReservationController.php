@@ -145,9 +145,28 @@ class PublicReservationController extends Controller
 
         // Parse start time with explicit timezone handling to prevent AM/PM confusion
         if (isset($validated['start_time'])) {
-            // Create Carbon instance in Manila timezone from the input string
-            // This ensures "16:38" is treated as 4:38 PM Manila time, not UTC
-            $startTime = Carbon::parse($validated['start_time'], config('app.timezone'));
+            // CRITICAL: The input string "2025-11-17T13:05:00" is ALREADY in Philippine time
+            // We must use createFromFormat with timezone to tell Carbon this is Manila time,
+            // NOT UTC that needs to be converted
+            try {
+                $startTime = Carbon::createFromFormat(
+                    'Y-m-d\TH:i:s',
+                    $validated['start_time'],
+                    config('app.timezone')  // This tells Carbon the INPUT is in this timezone
+                );
+            } catch (\Exception $e) {
+                // Fallback: try with different formats
+                $startTime = Carbon::createFromFormat(
+                    'Y-m-d H:i:s',
+                    str_replace('T', ' ', $validated['start_time']),
+                    config('app.timezone')
+                );
+            }
+            
+            if (!$startTime) {
+                // Last resort
+                $startTime = Carbon::now(config('app.timezone'));
+            }
         } else {
             $startTime = Carbon::now(config('app.timezone'));
         }
