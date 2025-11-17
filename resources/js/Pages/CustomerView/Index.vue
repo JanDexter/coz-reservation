@@ -8,7 +8,6 @@ import mayaLogo from '../../../img/customer_view/Maya_logo.svg';
 import SpaceCalendar from '../../Components/SpaceCalendar.vue';
 import ReservationDetailModal from '../../Components/ReservationDetailModal.vue';
 import PWAInstallButton from '../../Components/PWAInstallButton.vue';
-import PWADiagnostic from '../../Components/PWADiagnostic.vue';
 import OfflineDataView from '../../Components/OfflineDataView.vue';
 import { offlineStorage } from '../../utils/offlineStorage';
 // Removed payment logos; availability card no longer shown
@@ -928,6 +927,34 @@ const proceedToConfirmation = () => {
     paymentStep.value = 3;
 };
 
+// Check for overlapping reservations with user's existing bookings
+const hasOverlappingReservation = (startTime, endTime) => {
+    if (!props.reservations || props.reservations.length === 0) return false;
+    
+    const newStart = new Date(startTime);
+    const newEnd = new Date(endTime);
+    
+    return props.reservations.some(reservation => {
+        // Only check active reservations
+        if (!['pending', 'on_hold', 'confirmed', 'active', 'paid'].includes(reservation.status)) {
+            return false;
+        }
+        
+        const existingStart = new Date(reservation.start_time);
+        const existingEnd = new Date(reservation.end_time);
+        
+        // Check for any overlap
+        // New reservation starts during existing reservation
+        if (newStart >= existingStart && newStart < existingEnd) return true;
+        // New reservation ends during existing reservation
+        if (newEnd > existingStart && newEnd <= existingEnd) return true;
+        // New reservation completely contains existing reservation
+        if (newStart <= existingStart && newEnd >= existingEnd) return true;
+        
+        return false;
+    });
+};
+
 const confirmPayment = () => {
     if (!selectedPayment.value || !selectedSpace.value) return;
 
@@ -935,6 +962,24 @@ const confirmPayment = () => {
     let startTime = null;
     if (bookingDate.value && bookingStart.value) {
         startTime = `${bookingDate.value}T${bookingStart.value}:00`;
+    } else {
+        startTime = new Date().toISOString();
+    }
+    
+    // Calculate end time
+    const endTime = new Date(new Date(startTime).getTime() + (Number(bookingHours.value || 1) * 60 * 60 * 1000)).toISOString();
+    
+    // Check for overlapping reservations
+    if (hasOverlappingReservation(startTime, endTime)) {
+        const existingReservations = props.reservations.filter(r => 
+            ['pending', 'on_hold', 'confirmed', 'active', 'paid'].includes(r.status)
+        );
+        showToast(
+            `You already have ${existingReservations.length} active reservation(s) during this time. Please choose a different time or cancel your existing reservation first.`,
+            'error',
+            6000
+        );
+        return;
     }
 
     // For GCash/Maya, show mock payment success immediately
@@ -981,7 +1026,8 @@ const confirmPayment = () => {
                     // Save complete reservation data for offline access
                     offlineStorage.saveReservation({
                         ...reservation,
-                        space_name: selectedSpace.value.name,
+                        space_name: reservation.space_name || selectedSpace.value.name,
+                        space_type_name: reservation.space_type_name || selectedSpace.value.name,
                         customer_name: customerDetails.value.name,
                         customer_email: customerDetails.value.email,
                         customer_phone: customerDetails.value.phone,
@@ -1035,7 +1081,8 @@ const confirmPayment = () => {
             if (reservation) {
                 offlineStorage.saveReservation({
                     ...reservation,
-                    space_name: selectedSpace.value.name,
+                    space_name: reservation.space_name || selectedSpace.value.name,
+                    space_type_name: reservation.space_type_name || selectedSpace.value.name,
                     customer_name: customerDetails.value.name,
                     customer_email: customerDetails.value.email,
                     customer_phone: customerDetails.value.phone,
@@ -2786,9 +2833,6 @@ const copyToClipboard = async (text, label = 'Text') => {
 
     <!-- PWA Install Button -->
     <PWAInstallButton />
-    
-    <!-- PWA Diagnostic Tool (for debugging) -->
-    <PWADiagnostic />
 </template>
 
 <style scoped>
