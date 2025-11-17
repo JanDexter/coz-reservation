@@ -57,13 +57,13 @@ onUnmounted(() => {
         <!-- Left Side - Slideshow -->
         <div class="hidden lg:flex lg:w-1/2 relative bg-gradient-to-br from-[#2f4686] to-[#1e2f5a] overflow-hidden">
             <!-- Logo Overlay - Clickable -->
-            <Link :href="route('customer.view')" class="absolute top-8 left-8 z-20 bg-white rounded-lg px-4 py-2 shadow-lg hover:shadow-xl transition-shadow duration-200">
+            <Link href="/" class="absolute top-8 left-8 z-20 bg-white rounded-lg px-4 py-2 shadow-lg hover:shadow-xl transition-shadow duration-200">
                 <img :src="logo" alt="CO-Z Logo" class="h-10 w-auto" />
             </Link>
 
             <!-- Home Button -->
             <Link 
-                :href="route('customer.view')" 
+                href="/" 
                 class="absolute top-8 right-8 z-20 flex items-center gap-2 bg-white/10 backdrop-blur-sm hover:bg-white/20 text-white rounded-lg px-4 py-2 transition-all duration-200 border border-white/20 hover:border-white/40"
             >
                 <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">

@@ -2128,7 +2128,7 @@ const copyToClipboard = async (text, label = 'Text') => {
                             <div class="bg-slate-50 rounded-xl p-4 space-y-2 text-xs">
                                 <div class="flex justify-between">
                                     <span class="text-slate-600">Space:</span>
-                                    <span class="font-semibold text-[#2f4686]">{{ selectedSpace?.name }}</span>
+                                    <span class="font-semibold text-[#2f4686]">{{ selectedSpace?.name || 'Not selected' }}</span>
                                 </div>
                                 <div class="flex justify-between">
                                     <span class="text-slate-600">Date:</span>
@@ -2348,7 +2348,7 @@ const copyToClipboard = async (text, label = 'Text') => {
                                 <div class="space-y-2 text-xs">
                                     <div class="flex justify-between">
                                         <span class="text-slate-600">Space:</span>
-                                        <span class="font-semibold text-[#2f4686]">{{ selectedSpace?.name }}</span>
+                                        <span class="font-semibold text-[#2f4686]">{{ selectedSpace?.name || 'Not selected' }}</span>
                                     </div>
                                     <div class="flex justify-between">
                                         <span class="text-slate-600">Date:</span>
