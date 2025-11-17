@@ -9,6 +9,7 @@ import SpaceCalendar from '../../Components/SpaceCalendar.vue';
 import ReservationDetailModal from '../../Components/ReservationDetailModal.vue';
 import PWAInstallButton from '../../Components/PWAInstallButton.vue';
 import { offlineStorage } from '../../utils/offlineStorage';
+import { formatDatePH, formatTimePH, toPhilippineDateTimeString } from '../../utils/timezone';
 // Removed payment logos; availability card no longer shown
 
 // Utility: slugify labels consistently
@@ -42,28 +43,11 @@ const formatCurrency = (value) => {
     }).format(value);
 };
 
-const formatTime = (datetime) => {
-    if (!datetime) return '';
-    const date = new Date(datetime);
-    return date.toLocaleTimeString('en-US', {
-        hour: '2-digit',
-        minute: '2-digit',
-        hour12: true,
-        timeZone: 'Asia/Manila',
-    });
-};
+const formatTime = (datetime) => formatTimePH(datetime);
 
-const formatDate = (datetime) => {
-    if (!datetime) return '';
-    const date = new Date(datetime);
-    return date.toLocaleDateString('en-US', {
-        weekday: 'short',
-        month: 'short',
-        day: 'numeric',
-        year: 'numeric',
-        timeZone: 'Asia/Manila',
-    });
-};
+const formatDate = (datetime) => formatDatePH(datetime, {
+    weekday: 'short',
+});
 
 const getManilaNow = () => {
     const parts = new Intl.DateTimeFormat('en-US', {
@@ -1004,8 +988,8 @@ const confirmPayment = () => {
     } else {
         // Fallback to current time if booking time not specified
         const now = new Date();
-        startTime = now.toISOString();
-        endTime = new Date(now.getTime() + (Number(bookingHours.value || 1) * 60 * 60 * 1000)).toISOString();
+        startTime = toPhilippineDateTimeString(now);
+        endTime = toPhilippineDateTimeString(new Date(now.getTime() + (Number(bookingHours.value || 1) * 60 * 60 * 1000)));
     }
     
     // Check for overlapping reservations
@@ -1029,10 +1013,10 @@ const confirmPayment = () => {
         // Generate WiFi credentials and start timer for immediate reservations
         const mockReservation = {
             id: Date.now(), // Mock ID
-            start_time: startTime || new Date().toISOString(),
+            start_time: startTime || toPhilippineDateTimeString(),
             end_time: startTime 
-                ? new Date(new Date(startTime).getTime() + (Number(bookingHours.value || 1) * 60 * 60 * 1000)).toISOString()
-                : new Date(Date.now() + (Number(bookingHours.value || 1) * 60 * 60 * 1000)).toISOString(),
+                ? toPhilippineDateTimeString(new Date(new Date(startTime).getTime() + (Number(bookingHours.value || 1) * 60 * 60 * 1000)))
+                : toPhilippineDateTimeString(new Date(Date.now() + (Number(bookingHours.value || 1) * 60 * 60 * 1000))),
         };
         startReservationTimer(mockReservation);
         
