@@ -8,7 +8,6 @@ import mayaLogo from '../../../img/customer_view/Maya_logo.svg';
 import SpaceCalendar from '../../Components/SpaceCalendar.vue';
 import ReservationDetailModal from '../../Components/ReservationDetailModal.vue';
 import PWAInstallButton from '../../Components/PWAInstallButton.vue';
-import OfflineDataView from '../../Components/OfflineDataView.vue';
 import { offlineStorage } from '../../utils/offlineStorage';
 // Removed payment logos; availability card no longer shown
 
@@ -482,9 +481,6 @@ const showToast = (message, type = 'success', duration = 3000) => {
     if (toastTimerId) clearTimeout(toastTimerId);
     toastTimerId = setTimeout(() => { toast.value.show = false; }, duration);
 };
-
-// Offline data view reference
-const offlineDataViewRef = ref(null);
 
 // Booking selection and availability gating
 // Initialize with current Manila time
@@ -1062,11 +1058,6 @@ const confirmPayment = () => {
                         customer_phone: customerDetails.value.phone,
                         customer_company_name: customerDetails.value.company_name,
                     });
-                    
-                    // Refresh offline data view if it exists
-                    if (offlineDataViewRef.value) {
-                        offlineDataViewRef.value.loadData();
-                    }
                 }
             },
             onError: (errors) => {
@@ -1117,11 +1108,6 @@ const confirmPayment = () => {
                     customer_phone: customerDetails.value.phone,
                     customer_company_name: customerDetails.value.company_name,
                 });
-                
-                // Refresh offline data view if it exists
-                if (offlineDataViewRef.value) {
-                    offlineDataViewRef.value.loadData();
-                }
             }
         },
         onError: (errors) => {

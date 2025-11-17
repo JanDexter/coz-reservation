@@ -27,7 +27,7 @@
             <div class="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
                 <div>
                     <p class="text-gray-600">Space</p>
-                    <p class="font-medium text-gray-900">{{ reservation.space_name || 'N/A' }}</p>
+                    <p class="font-medium text-gray-900">{{ reservation.space_name || reservation.space_type_name || 'Not specified' }}</p>
                 </div>
                 <div>
                     <p class="text-gray-600">Status</p>

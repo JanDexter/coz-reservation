@@ -316,7 +316,7 @@ class PublicReservationController extends Controller
         });
 
         // Load the spaceType relationship to avoid N+1 and ensure space_type data is available
-        $reservation->load('spaceType');
+        $reservation->load(['spaceType', 'space']);
 
         return redirect()
             ->route('customer.view')
@@ -325,7 +325,7 @@ class PublicReservationController extends Controller
                 'status' => $reservation->status,
                 'total_cost' => $reservation->total_cost,
                 'space_type_name' => $reservation->spaceType->name ?? null,
-                'space_name' => $reservation->space->name ?? null,
+                'space_name' => optional($reservation->space)->name ?? $reservation->spaceType->name ?? null,
             ]);
     }
 
