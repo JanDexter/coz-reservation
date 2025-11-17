@@ -4,6 +4,7 @@ import { router } from '@inertiajs/vue3';
 import gcashLogo from '../../img/customer_view/GCash_logo.svg';
 import mayaLogo from '../../img/customer_view/Maya_logo.svg';
 import { offlineStorage } from '../utils/offlineStorage';
+import { formatDateTimePH } from '@/utils/timezone';
 
 const props = defineProps({
     reservation: {
@@ -37,19 +38,7 @@ const formatCurrency = (value) => {
     }).format(value);
 };
 
-const formatDateTime = (datetime) => {
-    if (!datetime) return '';
-    const date = new Date(datetime);
-    return date.toLocaleString('en-US', {
-        month: 'short',
-        day: 'numeric',
-        year: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit',
-        hour12: true,
-        timeZone: 'Asia/Manila',
-    });
-};
+const formatDateTime = (datetime) => formatDateTimePH(datetime) || '';
 
 const getStatusStyle = (status) => {
     const styles = {

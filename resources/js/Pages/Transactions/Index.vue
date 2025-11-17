@@ -3,6 +3,7 @@ import { ref, computed } from 'vue';
 import { Head, Link, router } from '@inertiajs/vue3';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import PaymentModal from '@/Components/PaymentModal.vue';
+import { formatDateTimePH } from '@/utils/timezone';
 
 const props = defineProps({
     transactions: Object,
@@ -21,15 +22,7 @@ const formatCurrency = (value) => {
     }).format(value || 0);
 };
 
-const formatDate = (date) => {
-    return new Date(date).toLocaleDateString('en-US', {
-        year: 'numeric',
-        month: 'short',
-        day: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit',
-    });
-};
+const formatDate = (date) => formatDateTimePH(date) || '';
 
 const getTypeColor = (type) => {
     const colors = {
