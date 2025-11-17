@@ -143,9 +143,14 @@ class PublicReservationController extends Controller
 
         $pax = $validated['pax'] ?? 1;
 
-        $startTime = isset($validated['start_time']) 
-            ? Carbon::parse($validated['start_time'], config('app.timezone')) 
-            : Carbon::now(config('app.timezone'));
+        // Parse start time with explicit timezone handling to prevent AM/PM confusion
+        if (isset($validated['start_time'])) {
+            // Create Carbon instance in Manila timezone from the input string
+            // This ensures "16:38" is treated as 4:38 PM Manila time, not UTC
+            $startTime = Carbon::parse($validated['start_time'], config('app.timezone'));
+        } else {
+            $startTime = Carbon::now(config('app.timezone'));
+        }
         
         // Auto-adjust start time if it's in the past (e.g., missed payment deadline)
         $startTime = $this->adjustStartTimeIfNeeded($startTime);
