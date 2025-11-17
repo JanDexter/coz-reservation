@@ -219,24 +219,10 @@ class PublicReservationController extends Controller
             }
         }
 
-        // VALIDATION: Check for overlapping reservations
+        // VALIDATION: Check for overlapping reservations for this customer
         $hasOverlappingReservation = $customer->reservations()
             ->whereIn('status', ['pending', 'on_hold', 'confirmed', 'active', 'paid'])
-            ->where(function($q) use ($startTime, $endTime) {
-                $q->where(function($query) use ($startTime, $endTime) {
-                    // New reservation starts during an existing reservation
-                    $query->where('start_time', '<=', $startTime)
-                          ->where('end_time', '>', $startTime);
-                })->orWhere(function($query) use ($startTime, $endTime) {
-                    // New reservation ends during an existing reservation
-                    $query->where('start_time', '<', $endTime)
-                          ->where('end_time', '>=', $endTime);
-                })->orWhere(function($query) use ($startTime, $endTime) {
-                    // New reservation completely contains an existing reservation
-                    $query->where('start_time', '>=', $startTime)
-                          ->where('end_time', '<=', $endTime);
-                });
-            })
+            ->overlapping($startTime, $endTime)
             ->exists();
 
         if ($hasOverlappingReservation) {
@@ -263,10 +249,9 @@ class PublicReservationController extends Controller
             // Auto-assign to an available physical space without time conflicts
             $assignedSpace = \App\Models\Space::where('space_type_id', $spaceType->id)
                 ->whereDoesntHave('reservations', function($q) use ($startTime, $endTime) {
-                    // Check for overlapping reservations
-                    $q->active()
-                      ->where('start_time', '<', $endTime)
-                      ->where('end_time', '>', $startTime);
+                    // Check for overlapping active reservations
+                    $q->whereIn('status', ['pending', 'on_hold', 'confirmed', 'active', 'paid'])
+                      ->overlapping($startTime, $endTime);
                 })
                 ->first();
 
