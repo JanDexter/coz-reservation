@@ -53,6 +53,20 @@ class Reservation extends Model
         'is_fully_paid',
     ];
 
+    /**
+     * Prepare a date for array / JSON serialization.
+     * Override to serialize dates in the app timezone instead of UTC
+     */
+    protected function serializeDate(\DateTimeInterface $date): string
+    {
+        // Convert to Carbon instance and set to app timezone
+        $carbon = Carbon::parse($date)->setTimezone(config('app.timezone'));
+        
+        // Return in ISO format but with the app timezone offset
+        // Format: 2025-11-17T13:05:00+08:00 (Philippine time with +08:00 offset)
+        return $carbon->toIso8601String();
+    }
+
     public function user()
     {
         return $this->belongsTo(User::class);
