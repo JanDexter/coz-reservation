@@ -986,7 +986,11 @@ const confirmPayment = () => {
     // Build start_time from booking date and time if available
     let startTime = null;
     if (bookingDate.value && bookingStart.value) {
-        startTime = `${bookingDate.value}T${bookingStart.value}:00`;
+        // Create a proper Date object in local timezone (Manila)
+        // Format: 2025-11-17T16:38:00 becomes a proper Date object
+        const localDate = new Date(`${bookingDate.value}T${bookingStart.value}:00`);
+        // Convert to ISO string which includes timezone info
+        startTime = localDate.toISOString();
     } else {
         startTime = new Date().toISOString();
     }
