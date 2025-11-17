@@ -1,6 +1,7 @@
 <script setup>
 import { computed, ref, watch } from 'vue';
 import { useForm, router } from '@inertiajs/vue3';
+import { toPhilippineDateTimeInput, toPhilippineDateTimeString, formatDateTimePH } from '@/utils/timezone';
 
 const props = defineProps({
     show: {
@@ -60,13 +61,7 @@ const formatCurrency = (value) => {
     }).format(Number(value ?? 0));
 };
 
-const toInputDateTime = (value) => {
-    if (!value) return '';
-    const date = new Date(value);
-    if (Number.isNaN(date.getTime())) return '';
-    const pad = (num) => String(num).padStart(2, '0');
-    return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
-};
+const toInputDateTime = (value) => toPhilippineDateTimeInput(value);
 
 const totalCost = computed(() => Number(localReservation.value?.total_cost ?? 0));
 
@@ -132,8 +127,8 @@ const submit = () => {
             amount_paid: data.amount_paid === '' ? null : Number(data.amount_paid),
             hours: data.hours === '' ? null : Number(data.hours),
             pax: data.pax === '' ? null : Number(data.pax),
-            start_time: data.start_time ? new Date(data.start_time).toISOString() : null,
-            end_time: data.end_time ? new Date(data.end_time).toISOString() : null,
+            start_time: data.start_time ? toPhilippineDateTimeString(data.start_time) : null,
+            end_time: data.end_time ? toPhilippineDateTimeString(data.end_time) : null,
         }))
         .put(route('admin.reservations.update', localReservation.value.id), {
             preserveScroll: true,
@@ -199,6 +194,8 @@ const cancelReservation = () => {
         }
     );
 };
+
+const formatNowInPH = () => formatDateTimePH(new Date()) || '';
 </script>
 
 <template>
@@ -400,7 +397,7 @@ const cancelReservation = () => {
 
             <footer class="flex flex-col gap-3 border-t border-gray-200 bg-gray-50 px-6 py-4 sm:flex-row sm:items-center sm:justify-between">
                 <div class="text-sm text-gray-500">
-                    Updated {{ new Date().toLocaleString('en-US', { hour: '2-digit', minute: '2-digit', month: 'short', day: 'numeric' }) }}
+                    Updated {{ formatNowInPH() }}
                 </div>
                 <div class="flex flex-col gap-2 sm:flex-row">
                     <button

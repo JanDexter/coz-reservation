@@ -5,6 +5,7 @@ import { ref, computed, onMounted, onBeforeUnmount } from 'vue';
 import PaymentModal from '@/Components/PaymentModal.vue';
 import AdminReservationModal from '@/Components/AdminReservationModal.vue';
 import { UserGroupIcon, CheckCircleIcon, XCircleIcon } from '@heroicons/vue/24/solid';
+import { formatDateTimePH, formatDatePH, formatTimePH } from '@/utils/timezone';
 
 const props = defineProps({
     stats: Object,
@@ -78,55 +79,16 @@ const handleReservationUpdated = () => {
     router.reload({ only: ['recentTransactions', 'activeServices'] });
 };
 
-const showSpaceReservationsModal = ref(false);
-const spaceReservations = ref([]);
-const selectedSpace = ref(null);
-
-const viewSpaceReservations = async (space) => {
-    selectedSpace.value = space;
-    try {
-        const response = await fetch(route('spaces.reservations', space.id));
-        const data = await response.json();
-        spaceReservations.value = data.reservations || [];
-        showSpaceReservationsModal.value = true;
-    } catch (error) {
-        console.error('Error fetching space reservations:', error);
-        alert('Failed to load reservations for this space');
-    }
-};
-
-const closeSpaceReservationsModal = () => {
-    showSpaceReservationsModal.value = false;
-    selectedSpace.value = null;
-    spaceReservations.value = [];
-};
-
 const formatDateTime = (dateTime) => {
-    if (!dateTime) return 'N/A';
-    const date = new Date(dateTime);
-    return date.toLocaleString('en-US', {
-        month: 'short',
-        day: 'numeric',
-        year: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit',
-        timeZone: 'Asia/Manila'
-    });
+    const formatted = formatDateTimePH(dateTime);
+    return formatted || 'N/A';
 };
 
+const formatLocalDate = (dateString) => formatDatePH(dateString) || '';
 
+const formatLocalDateTime = (dateString) => formatDateTimePH(dateString) || '';
 
-const formatLocalDate = (dateString) => {
-    if (!dateString) return '';
-    const date = new Date(dateString);
-    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'Asia/Manila' });
-};
-
-const formatLocalDateTime = (dateString) => {
-    if (!dateString) return '';
-    const date = new Date(dateString);
-    return date.toLocaleString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Manila' });
-};
+const formatLocalTime = (dateString) => formatTimePH(dateString) || '-';
 
 const getStatusColor = (status) => {
     const colors = {
@@ -162,78 +124,6 @@ const runningHours = (start) => {
 const formatDate = (dateString) => {
     if (!dateString) return '';
     return formatLocalDate(dateString);
-};
-
-const getTotalSpaces = (spaceType) => {
-    return spaceType?.spaces?.length || 0;
-};
-
-const getOccupiedSpaces = (spaceType) => {
-    return spaceType?.spaces?.filter(space => space.is_currently_occupied).length || 0;
-};
-
-const getAvailableSpaces = (spaceType) => {
-    return spaceType?.spaces?.filter(space => !space.is_currently_occupied).length || 0;
-};
-
-const getOccupancyPercentage = (spaceType) => {
-    const total = getTotalSpaces(spaceType);
-    const occupied = getOccupiedSpaces(spaceType);
-    return total > 0 ? Math.round((occupied / total) * 100) : 0;
-};
-
-const getOccupancyFraction = (spaceType) => {
-    const occupied = getOccupiedSpaces(spaceType);
-    const total = getTotalSpaces(spaceType);
-    return `${occupied}/${total}`;
-};
-
-const getNextAvailableTime = (spaceType) => {
-    if (!spaceType?.spaces) return null;
-    
-    const occupiedSpaces = spaceType.spaces
-        .filter(space => space.is_currently_occupied && space.current_occupation?.end_time)
-        .sort((a, b) => new Date(a.current_occupation.end_time) - new Date(b.current_occupation.end_time));
-    
-    if (occupiedSpaces.length === 0) {
-        return null;
-    }
-    
-    const nextFree = new Date(occupiedSpaces[0].current_occupation.end_time);
-    const now = new Date();
-    
-    if (nextFree <= now) {
-        return 'Available now';
-    }
-    
-    const diff = nextFree - now;
-    const hours = Math.floor(diff / (1000 * 60 * 60));
-    const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
-    
-    if (hours > 0) {
-        return `${hours}h ${minutes}m`;
-    } else {
-        return `${minutes}m`;
-    }
-};
-
-const getTimeUntilFree = (space) => {
-    if (!space.current_occupation?.end_time) return null;
-    
-    const until = new Date(space.current_occupation.end_time);
-    const now = new Date();
-    
-    if (until <= now) return 'Available now';
-    
-    const diff = until - now;
-    const hours = Math.floor(diff / (1000 * 60 * 60));
-    const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
-    
-    if (hours > 0) {
-        return `${hours}h ${minutes}m`;
-    } else {
-        return `${minutes}m`;
-    }
 };
 
 // Helper functions for overall space statistics
@@ -346,91 +236,6 @@ const getSlotAvailabilityColor = (spaceType) => {
                                         <dt class="text-sm font-medium text-gray-500 truncate">Inactive Customers</dt>
                                         <dd class="text-2xl font-semibold text-gray-900">{{ stats.inactive_customers }}</dd>
                                     </dl>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Space Slots by Type (Admin only) -->
-                <div v-if="($page.props.auth.user.is_admin || $page.props.auth.can.admin_access) && spaceTypes && spaceTypes.length > 0" class="bg-white overflow-hidden shadow-sm sm:rounded-lg mb-8">
-                    <div class="p-6">
-                        <div class="flex justify-between items-center mb-6">
-                            <h3 class="text-lg font-semibold text-gray-900">Space Slots</h3>
-                            <Link
-                                :href="route('space-management.index')"
-                                class="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded text-sm"
-                            >
-                                Manage Slots
-                            </Link>
-                        </div>
-                        
-                        <!-- Space Type Slots Grid -->
-                        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                            <div 
-                                v-for="spaceType in spaceTypes" 
-                                :key="spaceType.id"
-                                class="rounded-lg p-4 border-2 hover:shadow-lg transition-all"
-                                :class="getSlotAvailabilityColor(spaceType)"
-                            >
-                                <div>
-                                    <div class="flex items-center justify-between mb-3">
-                                        <h4 class="text-lg font-semibold text-gray-900">{{ spaceType.name }}</h4>
-                                        <div class="text-sm font-medium text-gray-600">₱{{ spaceType.hourly_rate || spaceType.default_price }}/hr</div>
-                                    </div>
-                                    <div class="text-3xl font-bold text-gray-900 mb-1">{{ getOccupancyFraction(spaceType) }}</div>
-                                    <div class="text-sm text-gray-600 mb-3">slots occupied</div>
-                                    
-                                    <!-- Spaces list with future reservations -->
-                                    <div v-if="spaceType.spaces && spaceType.spaces.length > 0" class="space-y-2 mt-4">
-                                        <div 
-                                            v-for="space in spaceType.spaces" 
-                                            :key="space.id"
-                                            class="p-3 bg-white rounded-md shadow-sm border"
-                                            :class="space.is_currently_occupied ? 'border-red-300' : (space.has_future_reservations ? 'border-yellow-300' : 'border-green-300')"
-                                        >
-                                            <div class="flex items-center justify-between mb-2">
-                                                <span class="font-medium text-sm">{{ space.name }}</span>
-                                                <span 
-                                                    class="text-xs px-2 py-1 rounded-full font-semibold"
-                                                    :class="space.is_currently_occupied ? 'bg-red-100 text-red-800' : (space.has_future_reservations ? 'bg-yellow-100 text-yellow-800' : 'bg-green-100 text-green-800')"
-                                                >
-                                                    {{ space.is_currently_occupied ? 'Occupied' : (space.has_future_reservations ? 'Reserved' : 'Available') }}
-                                                </span>
-                                            </div>
-                                            
-                                            <!-- Current Occupation -->
-                                            <div v-if="space.is_currently_occupied && space.current_occupation" class="text-xs text-gray-600 mb-2 p-2 bg-red-50 rounded">
-                                                <p class="font-semibold text-red-900">Currently Occupied:</p>
-                                                <p>{{ space.current_occupation.customer_name }}</p>
-                                                <p>Until: {{ formatDateTime(space.current_occupation.end_time) }}</p>
-                                            </div>
-                                            
-                                            <!-- Future Reservations Notice -->
-                                            <div v-if="!space.is_currently_occupied && space.has_future_reservations && space.future_reservations && space.future_reservations.length > 0" class="text-xs text-gray-600 mb-2 p-2 bg-yellow-50 rounded border border-yellow-200">
-                                                <p class="font-semibold text-yellow-900 mb-1">📅 Upcoming Reservation:</p>
-                                                <div v-for="(futureRes, idx) in space.future_reservations.slice(0, 1)" :key="idx">
-                                                    <p class="text-yellow-800">{{ futureRes.customer_name }}</p>
-                                                    <p class="text-yellow-700">{{ formatDateTime(futureRes.start_time) }} - {{ formatDateTime(futureRes.end_time) }}</p>
-                                                </div>
-                                                <p v-if="space.future_reservations.length > 1" class="text-yellow-600 mt-1 italic">
-                                                    +{{ space.future_reservations.length - 1 }} more reservation(s)
-                                                </p>
-                                            </div>
-                                            
-                                            <!-- Action Button -->
-                                            <button
-                                                @click="viewSpaceReservations(space)"
-                                                class="w-full mt-2 text-xs bg-blue-500 hover:bg-blue-600 text-white font-semibold py-1.5 px-3 rounded transition-colors"
-                                            >
-                                                📋 View All Reservations
-                                            </button>
-                                        </div>
-                                    </div>
-                                    
-                                    <div v-else class="text-sm text-gray-500 italic mt-4">
-                                        No spaces configured
-                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -631,7 +436,7 @@ const getSlotAvailabilityColor = (spaceType) => {
                                         {{ formatDate(customer.created_at) }}
                                     </td>
                                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                        {{ customer.service_start_time ? new Date(customer.service_start_time).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true }) : '-' }}
+                                        {{ formatLocalTime(customer.service_start_time) }}
                                     </td>
                                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                                         ₱{{ customer.amount_paid ? Number(customer.amount_paid).toLocaleString() : '0' }}
@@ -715,96 +520,6 @@ const getSlotAvailabilityColor = (spaceType) => {
             @close="closeReservationModal"
             @updated="handleReservationUpdated"
         />
-        
-        <!-- Space Reservations Modal -->
-        <div v-if="showSpaceReservationsModal" class="fixed inset-0 z-50 overflow-y-auto">
-            <div class="flex items-center justify-center min-h-screen px-4 pt-4 pb-20 text-center sm:block sm:p-0">
-                <div class="fixed inset-0 transition-opacity bg-gray-500 bg-opacity-75" @click="closeSpaceReservationsModal"></div>
-                
-                <div class="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-4xl sm:w-full">
-                    <div class="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
-                        <div class="flex items-center justify-between mb-4">
-                            <h3 class="text-lg leading-6 font-medium text-gray-900">
-                                Reservations for {{ selectedSpace?.name }}
-                            </h3>
-                            <button @click="closeSpaceReservationsModal" class="text-gray-400 hover:text-gray-500">
-                                <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-                                </svg>
-                            </button>
-                        </div>
-                        
-                        <div class="mt-4 overflow-x-auto">
-                            <table class="min-w-full divide-y divide-gray-200">
-                                <thead class="bg-gray-50">
-                                    <tr>
-                                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Customer</th>
-                                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Start Time</th>
-                                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">End Time</th>
-                                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Type</th>
-                                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Cost</th>
-                                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
-                                    </tr>
-                                </thead>
-                                <tbody class="bg-white divide-y divide-gray-200">
-                                    <tr v-for="reservation in spaceReservations" :key="reservation.id" class="hover:bg-gray-50">
-                                        <td class="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900">{{ reservation.customer_name }}</td>
-                                        <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-500">{{ formatDateTime(reservation.start_time) }}</td>
-                                        <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-500">{{ formatDateTime(reservation.end_time) }}</td>
-                                        <td class="px-4 py-3 whitespace-nowrap">
-                                            <span 
-                                                class="inline-flex px-2 py-1 text-xs font-semibold rounded-full"
-                                                :class="{
-                                                    'bg-green-100 text-green-800': reservation.is_active,
-                                                    'bg-blue-100 text-blue-800': reservation.is_future,
-                                                    'bg-gray-100 text-gray-800': reservation.is_past
-                                                }"
-                                            >
-                                                {{ reservation.is_active ? 'Active' : (reservation.is_future ? 'Future' : 'Past') }}
-                                            </span>
-                                        </td>
-                                        <td class="px-4 py-3 whitespace-nowrap">
-                                            <span :class="`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(reservation.status)}`">
-                                                {{ reservation.status.toUpperCase() }}
-                                            </span>
-                                        </td>
-                                        <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-900">₱{{ reservation.total_cost }}</td>
-                                        <td class="px-4 py-3 whitespace-nowrap text-sm space-x-2">
-                                            <button
-                                                @click="openReservationModal(reservation)"
-                                                class="text-blue-600 hover:text-blue-800 font-medium"
-                                            >
-                                                View
-                                            </button>
-                                            <button
-                                                v-if="reservation.amount_remaining > 0"
-                                                @click="openPaymentModal({ ...reservation, space_name: selectedSpace?.name })"
-                                                class="text-green-600 hover:text-green-800 font-medium"
-                                            >
-                                                Pay
-                                            </button>
-                                        </td>
-                                    </tr>
-                                    <tr v-if="!spaceReservations || spaceReservations.length === 0">
-                                        <td colspan="7" class="px-4 py-3 text-center text-sm text-gray-500">No reservations found</td>
-                                    </tr>
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
-                    <div class="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
-                        <button
-                            type="button"
-                            @click="closeSpaceReservationsModal"
-                            class="w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 sm:ml-3 sm:w-auto sm:text-sm"
-                        >
-                            Close
-                        </button>
-                    </div>
-                </div>
-            </div>
-        </div>
     </AuthenticatedLayout>
 </template>
 

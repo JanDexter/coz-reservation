@@ -4,6 +4,7 @@ import { Head, router, Link, useForm } from '@inertiajs/vue3';
 import { ref, computed, watch, onMounted, onBeforeUnmount } from 'vue';
 import CustomerQuickCreateModal from '@/Components/CustomerQuickCreateModal.vue';
 import PaymentModal from '@/Components/PaymentModal.vue';
+import { formatDatePH, formatDateTimePH } from '@/utils/timezone';
 
 const onRowClick = (space, event) => {
     if (event.target.closest('a, button, input')) {
@@ -1042,24 +1043,9 @@ const formatReservationTimeDisplay = (reservation) => {
     return null;
 };
 
-const formatLocalDate = (dateString) => {
-    if (!dateString) return '';
-    const date = new Date(dateString);
-    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'Asia/Manila' });
-};
+const formatLocalDate = (dateString) => formatDatePH(dateString) || '';
 
-const formatLocalDateTime = (dateString) => {
-    if (!dateString) return '';
-    const date = new Date(dateString);
-    return date.toLocaleString('en-US', { 
-        month: 'short', 
-        day: 'numeric', 
-        hour: 'numeric', 
-        minute: '2-digit',
-        hour12: true,
-        timeZone: 'Asia/Manila' 
-    });
-};
+const formatLocalDateTime = (dateString) => formatDateTimePH(dateString) || '';
 
 // Removed inline edit state in favor of modal
 
