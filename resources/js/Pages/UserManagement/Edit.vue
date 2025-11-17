@@ -40,7 +40,7 @@ const submit = () => {
         <div class="py-12">
             <div class="max-w-2xl mx-auto sm:px-6 lg:px-8">
                 <!-- Manage Permissions Card -->
-                <div class="bg-gradient-to-r from-purple-50 to-indigo-50 border border-purple-200 overflow-hidden shadow-sm sm:rounded-lg mb-6">
+                <div class="bg-gradient-to-r from-purple-50 to-indigo-50 border-2 border-purple-400 overflow-hidden shadow-lg sm:rounded-lg mb-6">
                     <div class="p-6">
                         <div class="flex items-center justify-between">
                             <div class="flex items-center">

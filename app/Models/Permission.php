@@ -117,12 +117,11 @@ class Permission extends Model
                 'manage_system_settings', 'view_logs',
             ],
             'staff' => [
-                // Operational access
-                'view_spaces', 'view_space_availability',
-                'view_all_reservations', 'create_reservations', 'edit_reservations', 'extend_reservations',
-                'view_customers', 'create_customers', 'edit_customers', 'view_customer_history',
-                'view_transactions', 'process_payments',
-                'view_dashboard', 'view_reports',
+                // Limited staff access - booking and customer creation only
+                'view_space_availability',
+                'create_reservations',
+                'create_customers',
+                'process_payments',
             ],
             'customer' => [
                 // Customer-only access
