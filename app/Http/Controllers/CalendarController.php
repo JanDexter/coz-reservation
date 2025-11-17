@@ -13,10 +13,7 @@ class CalendarController extends Controller
     public function index(Request $request)
     {
         $reservations = Reservation::with(['customer', 'space.spaceType', 'spaceType'])
-            ->where(function ($query) {
-                $query->whereNull('status')
-                    ->orWhere('status', '!=', 'completed');
-            })
+            ->whereNotIn('status', ['completed', 'cancelled'])
             ->get();
 
         $events = $reservations->map(function ($reservation) {
