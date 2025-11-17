@@ -2,7 +2,6 @@
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import { Head, Link, router } from '@inertiajs/vue3';
 import { ref, computed, onMounted, onBeforeUnmount } from 'vue';
-import { usePWA } from '@/composables/usePWA.js';
 import PaymentModal from '@/Components/PaymentModal.vue';
 import AdminReservationModal from '@/Components/AdminReservationModal.vue';
 import { UserGroupIcon, CheckCircleIcon, XCircleIcon } from '@heroicons/vue/24/solid';
@@ -15,7 +14,6 @@ const props = defineProps({
     activeServices: Array,
 });
 
-const { isOnline, isInstallable, isInstalled, installPWA } = usePWA();
 
 const searchQuery = ref('');
 const showPaymentModal = ref(false);
@@ -285,32 +283,6 @@ const getSlotAvailabilityColor = (spaceType) => {
                         <p class="text-sm text-gray-600 mt-1">Overview of business operations and real-time metrics</p>
                     </div>
                     <div class="flex items-center gap-4">
-                        <!-- PWA Status Indicators -->
-                        <div class="flex items-center gap-2 text-sm">
-                            <!-- Online/Offline Status -->
-                            <div class="flex items-center gap-1">
-                                <div :class="isOnline ? 'bg-green-500' : 'bg-red-500'" class="w-2 h-2 rounded-full"></div>
-                                <span class="text-gray-600">{{ isOnline ? 'Online' : 'Offline' }}</span>
-                            </div>
-                            
-                            <!-- PWA Install Button -->
-                            <button
-                                v-if="isInstallable && !isInstalled"
-                                @click="installPWA"
-                                class="bg-indigo-500 hover:bg-indigo-700 text-white text-xs px-2 py-1 rounded"
-                            >
-                                Install App
-                            </button>
-                            
-                            <!-- PWA Installed Indicator -->
-                            <div v-if="isInstalled" class="flex items-center gap-1 text-indigo-600">
-                                <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                                    <path d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"/>
-                                </svg>
-                                <span class="text-xs">App Installed</span>
-                            </div>
-                        </div>
-                        
                         <Link
                             :href="route('customers.create')"
                             class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded inline-flex items-center"
