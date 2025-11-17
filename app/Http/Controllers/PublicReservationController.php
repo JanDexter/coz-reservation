@@ -221,7 +221,7 @@ class PublicReservationController extends Controller
 
         // VALIDATION: Check for overlapping reservations for this customer
         $hasOverlappingReservation = $customer->reservations()
-            ->whereIn('status', ['pending', 'on_hold', 'confirmed', 'active', 'paid'])
+            ->whereNotIn('status', ['cancelled', 'completed'])
             ->overlapping($startTime, $endTime)
             ->exists();
 
@@ -249,8 +249,8 @@ class PublicReservationController extends Controller
             // Auto-assign to an available physical space without time conflicts
             $assignedSpace = \App\Models\Space::where('space_type_id', $spaceType->id)
                 ->whereDoesntHave('reservations', function($q) use ($startTime, $endTime) {
-                    // Check for overlapping active reservations
-                    $q->whereIn('status', ['pending', 'on_hold', 'confirmed', 'active', 'paid'])
+                    // Check for overlapping active reservations (exclude cancelled and completed)
+                    $q->whereNotIn('status', ['cancelled', 'completed'])
                       ->overlapping($startTime, $endTime);
                 })
                 ->first();
