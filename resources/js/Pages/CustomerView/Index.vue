@@ -984,18 +984,17 @@ const confirmPayment = () => {
     if (!selectedPayment.value || !selectedSpace.value) return;
 
     // Build start_time from booking date and time if available
+    // Keep the time as-is in Philippine timezone (don't convert to UTC)
     let startTime = null;
     if (bookingDate.value && bookingStart.value) {
-        // Create a proper Date object in local timezone (Manila)
-        // Format: 2025-11-17T16:38:00 becomes a proper Date object
-        const localDate = new Date(`${bookingDate.value}T${bookingStart.value}:00`);
-        // Convert to ISO string which includes timezone info
-        startTime = localDate.toISOString();
+        // Send the datetime string as-is: "2025-11-17T16:00:00"
+        // Backend will interpret this as Philippine time
+        startTime = `${bookingDate.value}T${bookingStart.value}:00`;
     } else {
         startTime = new Date().toISOString();
     }
     
-    // Calculate end time
+    // Calculate end time - keep in same format
     const endTime = new Date(new Date(startTime).getTime() + (Number(bookingHours.value || 1) * 60 * 60 * 1000)).toISOString();
     
     // Check for overlapping reservations
